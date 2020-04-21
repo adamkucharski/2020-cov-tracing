@@ -2,6 +2,8 @@
 # Model of isolation, contact tracing, and physical distancing
 # Adam Kucharski (2020)
 # https://github.com/adamkucharski/2020-cov-tracing
+#
+# Libraries used: dplyr, tibble, readr, magrittr, igraph, doMC
 # - - - - - - - - - - - - - - - - - 
 
 
@@ -30,7 +32,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             trace_prop = 0.95, # Proportion of contacts traced
                             n_run = 5e3, # Number of simualtions
                             app_cov = 0.53, # App coverage
-                            prob_symp = 0.7, # Proportion symptomatic
+                            prob_symp = 0.6, # Proportion symptomatic
                             prob_t_asymp = 0.5, # Proportion symptomatic
                             isolate_distn = c(0,0.25,0.25,0.2,0.3,0), # distribution of time to isolate (1st day presymp)
                             dir_pick = "", # Output directory
@@ -39,8 +41,41 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             ){
   
   
-  # DEBUG
-  # isolate_distn = c(0,0.25,0.25,0.15,0.3,0); prob_symp = 0.7; prob_t_asymp = 0.5
+  # - - - - - - - - - - - - - - - - - - - - 
+  # Define parameters across scenarios (note: some will be redefined for specific scenarios)
+
+  # Demographic parameters
+  under_18_prob <- 0.21 # Probability under 18
+  
+  # Transmission and baseline risk
+  hh_risk <- 0.2 # HH risk
+  cc_risk <- 0.06 # Outside HH contact risk
+  
+  baseline_incident_cases <- 1e5 # baseline incidence symptomatic cases
+  
+  # Symptomatic and proportion getting tested
+  trace_adherence <- 0.9 # Adherence to testing/quarantine
+  p_tested <- trace_adherence # Proportion who get tested
+  time_isolate <- isolate_distn # Distribution over symptomatic period
+  p_symptomatic <- prob_symp
+  transmission_asymp <- prob_t_asymp
+  phone_coverage <- 1 # App coverage in non-app scenarios
+  p_pop_test <- 0.05 # Proportion mass tested (5% per week)
+  inf_period <- 5 # Infectious period
+  
+  # Tracing parameters
+  hh_trace <- 1 # Tracing in HH
+  ww_trace <- trace_prop # Tracing at work
+  other_trace <- trace_prop # Tracing others
+  
+  # Proportion of contacts met before
+  met_before_w <- 0.8 # At work/school
+  met_before_h <- 1 # Within HH
+  met_before_o <- 0.52 # In other settings
+  
+  # Set contact limit default high to avoid censoring in default scenarios
+  max_contacts <- 2e3 
+  
   
   # - - - - - 
   # RUN MODEL
@@ -59,32 +94,6 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   
     # Scenario set up
     scenario_pick <- scenario_list[kk]
-    
-    under_18_prob <- 0.21
-    
-    # Symptomatic and proportion getting tested
-    trace_adherence <- 0.9 # Adherence to testing/quarantine
-    p_tested <- trace_adherence # Proportion who get tested
-    time_isolate <- isolate_distn # Distribution over symptomatic period
-    p_symptomatic <- prob_symp
-    transmission_asymp <- prob_t_asymp
-    phone_coverage <- 1 # app coverage
-    p_pop_test <- 0.05 # Proportion mass tested (5% per week)
-    inf_period <- 5 # infectious period
-    
-    # Tracing parameters
-    
-    hh_trace <- 1 # Tracing in HH
-    ww_trace <- trace_prop # Tracing at work
-    other_trace <- trace_prop # Tracing others
-
-    # Proportion of contacts met before
-    met_before_w <- 0.8 # assume 80%
-    met_before_h <- 1 # assume 100%
-    met_before_o <- 0.52 #assume 52%
-    
-    # Set contact limit default high to avoid censoring in default scenarios
-    max_contacts <- 2e3 
 
     # Define scenario parameters
     if(scenario_pick=="no_measures"){
@@ -285,7 +294,9 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       if(scenario_pick=="hh_work_only"){
         total_traced <- home_traced + work_traced + 1
       }
-      if(scenario_pick=="isolation_manual_tracing_met_only" | scenario_pick=="isolation_manual_tracing_met_limit" | scenario_pick== "isolation_manual_tracing" | scenario_pick== "cell_phone" | scenario_pick=="cell_phone_met_limit"){
+      if(scenario_pick=="isolation_manual_tracing_met_only" | scenario_pick=="isolation_manual_tracing_met_limit" | 
+         scenario_pick== "isolation_manual_tracing" | scenario_pick== "cell_phone" | 
+         scenario_pick=="cell_phone_met_limit"){
         total_traced <- home_traced + work_traced + other_traced + 1
       }
         
@@ -300,7 +311,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
     
     diff_r <- store_r$rr - store_r$rr_reduced
 
-    store_table_scenario <- rbind(store_table_scenario,c(scenario_pick,mean(store_r$rr),mean(diff_r),mean(store_r$rr_reduced),mean(store_r$total_traced)))
+    store_table_scenario <- rbind(store_table_scenario,c(scenario_pick,mean(store_r$rr),mean(diff_r),
+                                                         mean(store_r$rr_reduced),mean(store_r$total_traced)))
     
   } # end scenario loop
   
@@ -333,7 +345,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   
   store_table_scenarioA
 
-  write_csv(store_table_scenarioA,paste0(out_dir,dir_pick,"table",hh_risk,"_minother_",max_low_fix,"_wfh_",wfh_prob,"_trace_",trace_prop,"_symp_",prob_symp,"_app_",app_cov,"_tasymp_",prob_t_asymp,".csv"))
+  write_csv(store_table_scenarioA,paste0(dir_pick,"table",hh_risk,"_minother_",max_low_fix,"_wfh_",
+                                         wfh_prob,"_trace_",trace_prop,"_symp_",prob_symp,"_app_",app_cov,"_tasymp_",prob_t_asymp,".csv"))
 
 
 }
@@ -415,13 +428,14 @@ plot_networks <- function(){
     # Plot graph
     par(mar=c(1,1,1,1))
     layout_1 <- layout_nicely #layout_in_circle(g2, order = V(g2))
-    plot(g2,layout=layout_1,vertex.size=10,vertex.shape='circle',vertex.label=NA,vertex.color=pickcol,vertex.label.cex=0.5,vertex.label.family="",edge.arrow.width=2,edge.arrow.size=0.1,edge.color=rgb(0.6,0.6,0.6),edge.width=0.5) #,
+    plot(g2,layout=layout_1,vertex.size=10,vertex.shape='circle',vertex.label=NA,vertex.color=pickcol,
+         vertex.label.cex=0.5,vertex.label.family="",edge.arrow.width=2,edge.arrow.size=0.1,edge.color=rgb(0.6,0.6,0.6),edge.width=0.5) 
     
     title(LETTERS[ii+2],adj=0)
     
   }
 
-  dev.copy(png,paste0(out_dir,"plot1.png"),units="cm",width=14,height=20,res=150)
+  dev.copy(png,paste0(dir_pick,"plot1.png"),units="cm",width=14,height=20,res=150)
   dev.off()
   
   
@@ -429,9 +443,9 @@ plot_networks <- function(){
 
 # Plot contact limit against effectiveness -----------------------------------------------------------
 
-plot_contacts <- function(){
+plot_contacts <- function(dir_pick){
   
-  file_names <- list.files(paste0(out_dir,"runs/"))
+  file_names <- list.files(paste0(dir_pick,"runs/"))
   n_files <- length(file_names)
   
   par(mfrow=c(2,2),mar=c(3,3,1,1),mgp=c(2,0.6,0))
@@ -462,7 +476,8 @@ plot_contacts <- function(){
     
     if(ii==1){
       xx <- store_dat0 %>% filter(wfh==0 & scenario=="hh_work_only")
-      plot(xx$trace_p,xx$r_eff,xlab="proportion successfully traced outside HH",ylab="R",ylim=c(0.5,2.5),xlim=c(0,1),col="white",type="l",lwd=2)
+      plot(xx$trace_p,xx$r_eff,xlab="proportion successfully traced outside HH",ylab="R",ylim=c(0.5,2.5),xlim=c(0,1),
+           col="white",type="l",lwd=2)
       lines(c(0,1e3),c(1,1),col="dark grey")
       #grid(ny = NULL, nx=NA, col = "lightgray")
       kk <- ii+4
@@ -501,7 +516,8 @@ plot_contacts <- function(){
   
     if(ii==1){
       xx <- store_dat0 %>% filter(wfh==0  & scenario=="cell_phone_met_limit") 
-      plot(xx$limit_other,xx$r_eff,log="x",xlab="maximum daily other contacts",ylab="R",ylim=c(0.5,2.5),xlim=c(1,100),xaxt="n",col="white",type="l",lwd=2)
+      plot(xx$limit_other,xx$r_eff,log="x",xlab="maximum daily other contacts",ylab="R",ylim=c(0.5,2.5),xlim=c(1,100),
+           xaxt="n",col="white",type="l",lwd=2)
       #grid(ny = NULL, nx=NA, col = "lightgray")
       lines(c(1e-5,1e3),c(1,1),col="dark grey")
       xticks <- c(10^seq(0,3,1)); xtick_lab <- c(10^seq(0,3,1))
@@ -607,7 +623,7 @@ plot_contacts <- function(){
   
   title(LETTERS[4],adj=0)
   
-  dev.copy(png,paste0(out_dir,"plot2.png"),units="cm",width=20,height=16,res=150)
+  dev.copy(png,paste0(dir_pick,"plot2.png"),units="cm",width=20,height=16,res=150)
   dev.off()
   
 }
@@ -615,9 +631,9 @@ plot_contacts <- function(){
 
 # Plot symptomatic sensitivity -----------------------------------------------------------
 
-plot_symptom_reduction <- function(){
+plot_symptom_reduction <- function(dir_pick){
   
-  file_names <- list.files(paste0(out_dir,"runs2/"))
+  file_names <- list.files(paste0(dir_pick,"runs2/"))
   n_files <- length(file_names)
   
   par(mfrow=c(1,2),mar=c(3,3,1,1),mgp=c(2,0.6,0))
@@ -693,7 +709,8 @@ plot_symptom_reduction <- function(){
     
     if(ii==1){
       xx <- store_dat0 %>% filter(wfh==0  & scenario=="isolation_manual_tracing_met_only") 
-      plot(xx$prob_t_asymp,xx$reduction_raw,xlab="relative asymptomatic transmission",ylab="reduction in R",ylim=c(0,1),xlim=c(0,1),col="white",type="l",lwd=2)
+      plot(xx$prob_t_asymp,xx$reduction_raw,xlab="relative asymptomatic transmission",ylab="reduction in R",ylim=c(0,1),
+           xlim=c(0,1),col="white",type="l",lwd=2)
       #grid(ny = NULL, nx=NA, col = "lightgray")
       #lines(c(1e-5,1e3),c(1,1),col="dark grey")
       #xticks <- c(10^seq(0,3,1)); xtick_lab <- c(10^seq(0,3,1))
@@ -726,7 +743,7 @@ plot_symptom_reduction <- function(){
   
   title(LETTERS[2],adj=0)
   
-  dev.copy(png,paste0(out_dir,"plot_symp.png"),units="cm",width=20,height=8,res=150)
+  dev.copy(png,paste0(dir_pick,"plot_symp.png"),units="cm",width=20,height=8,res=150)
   dev.off()
   
 }
