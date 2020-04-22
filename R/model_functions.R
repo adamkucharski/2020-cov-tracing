@@ -36,9 +36,11 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             prob_t_asymp = 0.5, # Proportion symptomatic
                             isolate_distn = c(0,0.25,0.25,0.2,0.3,0), # distribution of time to isolate (1st day presymp)
                             dir_pick = "", # Output directory
-                            pt_extra = 0.95, # Optional extra transmission intervention
+                            pt_extra = 0, # Optional extra transmission intervention
                             pt_extra_reduce = 0, # Reduction from extra intervention
-                            output_r = F
+                            output_r = F,
+                            hh_risk = 0.2, # HH risk
+                            cc_risk = 0.065 # Outside HH contact risk
                             ){
   
   # DEBUG
@@ -51,9 +53,6 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   under_18_prob <- 0.21 # Probability under 18
   
   # Transmission and baseline risk
-  hh_risk <- 0.2 # HH risk
-  cc_risk <- 0.06 # Outside HH contact risk
-  
   baseline_incident_cases <- 20e4 # baseline incidence symptomatic cases
   
   # Symptomatic and proportion getting tested
@@ -66,19 +65,6 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   p_pop_test <- 0.05 # Proportion mass tested (5% per week)
   inf_period <- 5 # Infectious period
   
-  # Tracing parameters
-  hh_trace <- 1 # Tracing in HH
-  ww_trace <- trace_prop # Tracing at work
-  other_trace <- trace_prop # Tracing others
-  
-  # Proportion of contacts met before
-  met_before_w <- 0.79 # At work. At school = 90%, which is defined in function later on
-  met_before_h <- 1 # Within HH
-  met_before_o <- 0.52 # In other settings
-  
-  # Set contact limit default high to avoid censoring in default scenarios
-  max_contacts <- 2e3 
-
   # Define default scenarios
   scenario_list <- c("no_measures","isolation_only","hh_quaratine_only","hh_work_only",
                      "isolation_manual_tracing_met_only","isolation_manual_tracing_met_limit",
@@ -94,6 +80,20 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   # Iterate over scenarios
   
   for(kk in nn_choose){
+    
+    
+    # Proportion of contacts met before
+    met_before_w <- 0.79 # At work. At school = 90%, which is defined in function later on
+    met_before_h <- 1 # Within HH
+    met_before_o <- 0.52 # In other settings
+    
+    # Set contact limit default high to avoid censoring in default scenarios
+    max_contacts <- 2e3 
+    
+    # Tracing parameters - need to reset
+    hh_trace <- 1 # Tracing in HH
+    ww_trace <- trace_prop # Tracing at work
+    other_trace <- trace_prop # Tracing others
   
     # Scenario set up
     scenario_pick <- scenario_list[kk]
@@ -399,9 +399,9 @@ plot_R_distribution <- function(dir_pick){
 
 # Plot networks -----------------------------------------------------------
 
-plot_networks <- function(){
+plot_networks <- function(dir_pick){
   
-  par(mfrow=c(3,2),mar=c(3,3,1,1),mgp=c(2,0.6,0))
+  par(mfrow=c(3,2),mar=c(3,3,1,1),mgp=c(2,0.6,0),las=0)
   
   label_list <- c("home contacts","work or school contacts","other contacts")
   
@@ -434,11 +434,11 @@ plot_networks <- function(){
     
     if(ii==2){
       for(kk in 1:3){
-        text(x=30,y=exp(5+kk), labels=label_list[kk],cex=0.75,col=col_def[[kk]],adj=0)
+        text(x=20,y=exp(6+kk), labels=label_list[kk],cex=0.9,col=col_def[[kk]],adj=0)
       }
     }
     
-    title(LETTERS[ii],adj=0)
+    #title(LETTERS[ii],adj=0)
 
   }
   
@@ -446,8 +446,8 @@ plot_networks <- function(){
   # - - - - 
   # Network plot
   for(ii in 1:4){
-    pick_user <- sample(1:n_user,1)
-    data_ii <- data_user_col_red2[pick_user,]
+    #pick_user <- sample(1:n_user,1)
+    #data_ii <- data_user_col_red2[pick_user,]
     
     if(ii==1){contact_val <- c(7,38,4) }
     if(ii==2){contact_val <- c(1,0,2) }

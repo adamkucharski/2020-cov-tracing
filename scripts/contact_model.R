@@ -13,6 +13,7 @@ library(doMC)
 
 registerDoMC(4)  #change the 4 to your number of CPU cores
 
+setwd("~/Documents/GitHub/2020-cov-tracing/")
 
 # Set local path ----------------------------------------------
 
@@ -37,7 +38,7 @@ n_user_o18 <- nrow(data_user_col_red_o18)
 # Run simulation model ----------------------------------------------
 # For each function, outputs are saved in 'dir_pick' directory.
 
-n_run_pick <- 1e4 # model iterations
+n_run_pick <- 1e3 # model iterations
 
 set.seed(201)
 
@@ -46,12 +47,14 @@ source("R/model_functions.R")
 
 # - - - - - - 
 # Baseline case:
-offspring_model(n_run = n_run_pick, dir_pick = out_dir,output_r = T)
+offspring_model(n_run = n_run_pick) #, range_n = c(1:9), dir_pick = out_dir,output_r = T)
 
 # - - - - - - 
 # Sensitivity analysis on presymptomatic and isolation:
-offspring_model(n_run = n_run_pick,isolate_distn = c(0.25,0.25,0.2,0.3,0,0),dir_pick = paste0(out_dir,"sensitivity/no_presym_"))
-offspring_model(n_run = n_run_pick,isolate_distn = c(0,0,0.25,0.25,0.2,0.3),dir_pick = paste0(out_dir,"sensitivity/late_detection_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:9),isolate_distn = c(0.25,0.25,0.2,0.3,0,0),dir_pick = paste0(out_dir,"sensitivity/no_presym_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:9),isolate_distn = c(0,0,0.25,0.25,0.2,0.3),dir_pick = paste0(out_dir,"sensitivity/late_detection_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:9),isolate_distn = c(0,0.8,0.2,0,0,0),dir_pick = paste0(out_dir,"sensitivity/fast_isolation_"))
+
 
 # Output mean delay from onset-to-isolation in baseline and delayed scenario
 sum(c(0,0.25,0.25,0.2,0.3,0)*(0:5))
