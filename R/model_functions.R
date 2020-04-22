@@ -21,8 +21,8 @@ c.nume<-function(x){
 }
 
 
-col_def <-   list(col1="dark grey",col2=rgb(0.9,0.7,0),col3=rgb(0,0,0.8),col4=rgb(0.1,0.4,0.1),col5=rgb(1,0.4,1),col6=rgb(0.2,0,0.8),rgb(1,0,0))
-col_def_F <- list(col1="grey",col2=rgb(0.9,0.7,0,0.5),col3=rgb(0,0,0.8,0.5),col5=rgb(0.1,0.4,0.1,0.5),col6=rgb(1,0.4,1,0.5),col7=rgb(0.2,0,0.8,0.5),rgb(1,0,0,0.2))
+col_def <-   list(col1="dark grey",col2=rgb(0.9,0.7,0),col3=rgb(0,0,0.8),col4=rgb(0.1,0.4,0.1),col5=rgb(1,0.4,1),col6=rgb(0.2,0,0.8),rgb(0,0.7,0.7))
+col_def_F <- list(col1="grey",col2=rgb(0.9,0.7,0,0.5),col3=rgb(0,0,0.8,0.5),col5=rgb(0.1,0.4,0.1,0.5),col6=rgb(1,0.4,1,0.5),col7=rgb(0.2,0,0.8,0.5),rgb(0,0.7,0.7,0.2))
 
 # Offspring simulation model ----------------------------------------------
 
@@ -37,9 +37,12 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             isolate_distn = c(0,0.25,0.25,0.2,0.3,0), # distribution of time to isolate (1st day presymp)
                             dir_pick = "", # Output directory
                             pt_extra = 0.95, # Optional extra transmission intervention
-                            pt_extra_reduce = 0 # Reduction from extra intervention
+                            pt_extra_reduce = 0, # Reduction from extra intervention
+                            output_r = F
                             ){
   
+  # DEBUG
+  # max_low_fix = 4; wfh_prob = 0; range_n = NULL; trace_prop = 0.95; n_run = 5e3; app_cov = 0.53; prob_symp = 0.6; prob_t_asymp = 0.5; isolate_distn = c(0,0.25,0.25,0.2,0.3,0); dir_pick = ""; pt_extra = 0.95; pt_extra_reduce = 0; output_r = F
   
   # - - - - - - - - - - - - - - - - - - - - 
   # Define parameters across scenarios (note: some will be redefined for specific scenarios)
@@ -51,7 +54,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   hh_risk <- 0.2 # HH risk
   cc_risk <- 0.06 # Outside HH contact risk
   
-  baseline_incident_cases <- 1e5 # baseline incidence symptomatic cases
+  baseline_incident_cases <- 20e4 # baseline incidence symptomatic cases
   
   # Symptomatic and proportion getting tested
   trace_adherence <- 0.9 # Adherence to testing/quarantine
@@ -69,17 +72,13 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   other_trace <- trace_prop # Tracing others
   
   # Proportion of contacts met before
-  met_before_w <- 0.8 # At work/school
+  met_before_w <- 0.79 # At work. At school = 90%, which is defined in function later on
   met_before_h <- 1 # Within HH
   met_before_o <- 0.52 # In other settings
   
   # Set contact limit default high to avoid censoring in default scenarios
   max_contacts <- 2e3 
-  
-  
-  # - - - - - 
-  # RUN MODEL
-  
+
   # Define default scenarios
   scenario_list <- c("no_measures","isolation_only","hh_quaratine_only","hh_work_only",
                      "isolation_manual_tracing_met_only","isolation_manual_tracing_met_limit",
@@ -89,6 +88,10 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   if(is.null(range_n)){nn_choose <- 1:length(scenario_list)}else{nn_choose <- range_n}
   
   store_table_scenario <- NULL
+  
+  # - - - - - 
+  # RUN MODEL 
+  # Iterate over scenarios
   
   for(kk in nn_choose){
   
@@ -179,6 +182,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       if(runif(1)<under_18_prob){
         pick_user <- sample(1:n_user_u18,1)
         data_ii <- data_user_col_red_u18[pick_user,]
+        met_before_w <- 0.9
         wfh_t <- F # working from home?
       }else{
         pick_user <- sample(1:n_user_o18,1)
@@ -310,29 +314,37 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
     names(store_r) <- c("rr","rr_reduced","total_traced","inf_p")
     
     diff_r <- store_r$rr - store_r$rr_reduced
+    
+    # Output R and store table
+    if(output_r == T){write_csv(store_r,paste0(dir_pick,"rr_out/RR_",scenario_pick,".csv"))}
 
     store_table_scenario <- rbind(store_table_scenario,c(scenario_pick,mean(store_r$rr),mean(diff_r),
-                                                         mean(store_r$rr_reduced),mean(store_r$total_traced)))
+                                                         mean(store_r$rr_reduced),mean(store_r$total_traced),quantile(store_r$total_traced,c(0.05,0.95)),
+                                                         sum(store_r$rr_reduced>1)/n_run,sum(store_r$rr_reduced>3)/n_run
+                                                         ))
     
   } # end scenario loop
   
   # Convert
   store_table_scenario <- as_tibble(store_table_scenario)
-  names(store_table_scenario) <- c("scenario","basic","r_diff","r_eff","contacts")
+  names(store_table_scenario) <- c("scenario","basic","r_diff","r_eff","contacts","traced_90_1","traced_90_2","above1","above5")
   store_table_scenario$r_eff <- as.numeric(store_table_scenario$r_eff)
   store_table_scenario$basic <- as.numeric(store_table_scenario$basic)
+  store_table_scenario$above1 <- as.numeric(store_table_scenario$above1)
+  store_table_scenario$above5 <- as.numeric(store_table_scenario$above5)
   store_table_scenario$contacts <- signif(as.numeric(store_table_scenario$contacts),2)
   
   
   max_val <- store_table_scenario$r_eff[1]
   
   store_table_scenarioA <- store_table_scenario %>% mutate(reduction_raw = 1-r_eff/basic,
-                                                           r_effective = signif(max_val*(1-reduction_raw),2), # Normalise for consistency
-                                                           reduction = paste(100* signif(reduction_raw,2),"%"),
+                                                           r_effective = signif(max_val*(1-reduction_raw),3), # Normalise for consistency
+                                                           aboveX = paste0(100* signif(above1,2),"%, ",100* signif(above5,2),"%"),
+                                                           reduction = paste0(100* signif(reduction_raw,2),"%"),
                                                            t_contacts = contacts,
-                                                           total_contacts100 =  signif(1e-3*p_tested*contacts*baseline_incident_cases,3),
-                                                           total_contacts50 =   signif(1e-3*p_tested*contacts*0.5*baseline_incident_cases,3),
-                                                           total_contacts10 =   signif(1e-3*p_tested*contacts*0.1*baseline_incident_cases,3),
+                                                           total_contacts100 =  signif(1e-3*p_tested*contacts*baseline_incident_cases,2),
+                                                           total_contacts50 =   signif(1e-3*p_tested*contacts*0.5*baseline_incident_cases,2),
+                                                           total_contacts10 =   signif(1e-3*p_tested*contacts*0.25*baseline_incident_cases,2),
                                                            wfh = wfh_prob,
                                                            limit_other = max_low_fix,
                                                            trace_p = trace_prop,
@@ -342,16 +354,48 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                                                            )
   
 
-  
-  store_table_scenarioA
-
   write_csv(store_table_scenarioA,paste0(dir_pick,"table",hh_risk,"_minother_",max_low_fix,"_wfh_",
                                          wfh_prob,"_trace_",trace_prop,"_symp_",prob_symp,"_app_",app_cov,"_tasymp_",prob_t_asymp,".csv"))
 
 
 }
 
+# Plot R distribtion -----------------------------------------------------------
 
+plot_R_distribution <- function(dir_pick){
+  
+  file_names <- list.files(paste0(dir_pick,"rr_out/"))
+  n_files <- length(file_names)
+
+  par(mfrow=c(1,1),mar=c(3,3,1,1),mgp=c(2,0.6,0))
+  yy_lim <- c(1,5e3)
+  
+  plot(1,1,log="xy",xlab="secondary cases",ylab="frequency",ylim=yy_lim,xlim=c(0.5,100),yaxt="n",xaxt="n",col="white",pch=19,cex=0.8)
+  xticks <- c(0.5,10^seq(0,3,1)); xtick_lab <- c(0,10^seq(0,3,1))
+  axis(1, at = xticks,labels = xtick_lab,col = "black") 
+  axis(2, at = 10^c(0:3),labels = 10^c(0:3),col = "black") 
+  
+  for(ii in 9){
+    
+    store_r <- read_csv(paste0(dir_pick,"rr_out/",file_names[ii]))
+  
+    dataRR <- table(store_r$rr)
+    xx <- names(dataRR); xx[xx==0] <- 0.5; yy <- dataRR
+    
+    points(xx,yy,col=rgb(0,0,0,0.5),cex=0.8,pch=19)
+    
+    mean_yy <- mean(store_r$rr)
+    
+    lines(c(mean_yy,mean_yy),c(0.5,1e4),lty=2)
+  
+  }
+  
+  
+  dev.copy(png,paste0(dir_pick,"rr_plot.png"),units="cm",width=10,height=8,res=150)
+  dev.off()
+  
+  
+}
 
 # Plot networks -----------------------------------------------------------
 
@@ -376,7 +420,7 @@ plot_networks <- function(){
 
     xx <- names(dataH1) %>% as.numeric(); xx[xx==0] <- 0.5; yy <- dataH1 %>% as.numeric(); #yy <- yy/sum(yy);
     yy_lim <- if(ii==1){c(1,1.4e3)}else{c(1,1.5e4)}  #1.4e4 #ifelse(ii==1,)
-    plot(xx,yy,log="xy",xlab="contacts",ylab="participants",ylim=yy_lim,xlim=c(0.5,1000),xaxt="n",col=col_def_F[[1]],pch=19,cex=0.8)
+    plot(xx,yy,log="xy",xlab="contacts",ylab="participants",ylim=yy_lim,xlim=c(0.5,1000),yaxt="n",xaxt="n",col=col_def_F[[1]],pch=19,cex=0.8)
     
     xx <- names(dataH2) %>% as.numeric(); xx[xx==0] <- 0.5; yy <- dataH2 %>% as.numeric(); #yy <- yy/sum(yy);
     points(xx,yy,col=col_def_F[[2]],cex=0.8,pch=19)
@@ -386,10 +430,11 @@ plot_networks <- function(){
 
     xticks <- c(0.5,10^seq(0,3,1)); xtick_lab <- c(0,10^seq(0,3,1))
     axis(1, at = xticks,labels = xtick_lab,col = "black") 
+    axis(2, at = 10^c(0:3),labels = 10^c(0:3),col = "black") 
     
     if(ii==2){
       for(kk in 1:3){
-        text(x=50,y=exp(5+kk), labels=label_list[kk],cex=0.6,col=col_def[[kk]],adj=0)
+        text(x=30,y=exp(5+kk), labels=label_list[kk],cex=0.75,col=col_def[[kk]],adj=0)
       }
     }
     
@@ -431,7 +476,7 @@ plot_networks <- function(){
     plot(g2,layout=layout_1,vertex.size=10,vertex.shape='circle',vertex.label=NA,vertex.color=pickcol,
          vertex.label.cex=0.5,vertex.label.family="",edge.arrow.width=2,edge.arrow.size=0.1,edge.color=rgb(0.6,0.6,0.6),edge.width=0.5) 
     
-    title(LETTERS[ii+2],adj=0)
+    #title(LETTERS[ii+2],adj=0)
     
   }
 
@@ -448,13 +493,13 @@ plot_contacts <- function(dir_pick){
   file_names <- list.files(paste0(dir_pick,"runs/"))
   n_files <- length(file_names)
   
-  par(mfrow=c(2,2),mar=c(3,3,1,1),mgp=c(2,0.6,0))
+  par(mfrow=c(2,2),mar=c(3,3,1,1),mgp=c(2,0.6,0),las=1)
   
   # Compile data
   store_dat <- NULL
   for(ii in 1:n_files){
     
-    input_ii <- read_csv(paste0(out_dir,"runs/",file_names[ii]))
+    input_ii <- read_csv(paste0(dir_pick,"runs/",file_names[ii]))
     store_dat <- rbind(store_dat,input_ii)
     
   }
@@ -496,7 +541,7 @@ plot_contacts <- function(dir_pick){
     
     lines(xx$trace_p,xx$r_eff,col=col_def[[ii]],lwd=2) 
     
-    text(x=0,y=2.5-0.1*(ii-1), labels=label_list[ii],cex=0.6,col=col_def[[ii]],adj=0)
+    text(x=0,y=2.5-0.1*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[ii]],adj=0)
     
   }
   
@@ -540,7 +585,7 @@ plot_contacts <- function(dir_pick){
     
     lines(xx$limit_other,xx$r_eff,col=col_def[[kk]],lwd=2,lty=l_type) 
     
-    text(x=1,y=2.5-0.1*(ii-1), labels=label_list[ii],cex=0.6,col=col_def[[kk]],adj=0)
+    text(x=1,y=2.5-0.1*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
   
   }
   
@@ -580,7 +625,7 @@ plot_contacts <- function(dir_pick){
 
     lines(xx$wfh,xx$r_eff,col=col_def[[kk]],lwd=2) 
     
-    text(x=0,y=2.5-0.1*(ii-1), labels=label_list[ii],cex=0.6,col=col_def[[kk]],adj=0)
+    text(x=0,y=2.5-0.1*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
     
   }
   
@@ -616,7 +661,7 @@ plot_contacts <- function(dir_pick){
     
     lines(xx$app_cov,xx$r_eff,col=col_def[[kk]],lwd=2,lty=l_type) 
     
-    text(x=0,y=2.5-0.1*(ii-1), labels=label_list[ii],cex=0.6,col=col_def[[kk]],adj=0)
+    text(x=0,y=2.5-0.1*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
     
   }
   
@@ -636,7 +681,7 @@ plot_symptom_reduction <- function(dir_pick){
   file_names <- list.files(paste0(dir_pick,"runs2/"))
   n_files <- length(file_names)
   
-  par(mfrow=c(1,2),mar=c(3,3,1,1),mgp=c(2,0.6,0))
+  par(mfrow=c(1,2),mar=c(3,3,1,1),mgp=c(2,0.6,0),las=1)
   
   # Compile data
   store_dat <- NULL
@@ -646,6 +691,9 @@ plot_symptom_reduction <- function(dir_pick){
     store_dat <- rbind(store_dat,input_ii)
     
   }
+  
+  # Swap ordering
+  store_dat$reduction_raw <- 1-store_dat$reduction_raw
   
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -662,34 +710,34 @@ plot_symptom_reduction <- function(dir_pick){
     
     if(ii==1){
       xx <- store_dat0 %>% filter(wfh==0  & scenario=="isolation_manual_tracing_met_only") 
-      plot(xx$prob_symp,xx$reduction_raw,xlab="proportion symptomatic",ylab="reduction in R",ylim=c(0,1),xlim=c(0.2,0.8),col="white",type="l",lwd=2)
+      plot(xx$prob_symp,xx$reduction_raw,xlab="proportion symptomatic",ylab="relative R",ylim=c(0,1),xlim=c(0.2,0.8),col="white",type="l",lwd=2)
       #grid(ny = NULL, nx=NA, col = "lightgray")
       #lines(c(1e-5,1e3),c(1,1),col="dark grey")
       #xticks <- c(10^seq(0,3,1)); xtick_lab <- c(10^seq(0,3,1))
       #axis(1, at = xticks,labels = xtick_lab,col = "black") 
-      kk <- ii
+      kk <- 2
     }
     
     if(ii==2){
       xx <- store_dat0 %>% filter(wfh==0 & scenario=="isolation_manual_tracing_met_limit") 
-      kk <- ii
+      kk <- 3; l_type <- 1
     }
     if(ii==3){
       xx <- store_dat0 %>% filter(wfh==0 & scenario=="isolation_manual_tracing") 
-      kk <- ii
+      kk <- 4; l_type <- 1
     }
     if(ii==4){
       xx <- store_dat0 %>% filter(wfh==0 & scenario=="cell_phone") 
-      kk <- ii
+      kk <- 7; l_type <- 1
     }
     if(ii==5){
       xx <- store_dat0 %>% filter(wfh==0 & scenario=="cell_phone_met_limit") 
-      kk <- ii
+      kk <- 5; l_type <- 1
     }
     
     lines(xx$prob_symp,xx$reduction_raw,col=col_def[[kk]],lwd=2) 
     
-    text(x=0.2,y=1-0.05*(ii-1), labels=label_list[ii],cex=0.6,col=col_def[[kk]],adj=0)
+    text(x=0.2,y=1-0.05*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
     
   }
   
@@ -703,41 +751,41 @@ plot_symptom_reduction <- function(dir_pick){
                   "SI + app-based tracing",
                   "SI + app-based (max 4 other contacts)")
   
-  store_dat0 <- store_dat %>% filter(trace_p==0.95 & app_cov==0.53 & prob_symp==0.7 & limit_other==4) %>% arrange(prob_t_asymp)
+  store_dat0 <- store_dat %>% filter(trace_p==0.95 & app_cov==0.53 & prob_symp==0.6 & limit_other==4) %>% arrange(prob_t_asymp)
   
   for(ii in 1:5){
     
     if(ii==1){
       xx <- store_dat0 %>% filter(wfh==0  & scenario=="isolation_manual_tracing_met_only") 
-      plot(xx$prob_t_asymp,xx$reduction_raw,xlab="relative asymptomatic transmission",ylab="reduction in R",ylim=c(0,1),
+      plot(xx$prob_t_asymp,xx$reduction_raw,xlab="relative asymptomatic transmission",ylab="relative R",ylim=c(0,1),
            xlim=c(0,1),col="white",type="l",lwd=2)
       #grid(ny = NULL, nx=NA, col = "lightgray")
       #lines(c(1e-5,1e3),c(1,1),col="dark grey")
       #xticks <- c(10^seq(0,3,1)); xtick_lab <- c(10^seq(0,3,1))
       #axis(1, at = xticks,labels = xtick_lab,col = "black") 
-      kk <- ii
+      kk <- 2
     }
     
     if(ii==2){
       xx <- store_dat0 %>% filter(wfh==0 & scenario=="isolation_manual_tracing_met_limit") 
-      kk <- ii
+      kk <- 3
     }
     if(ii==3){
       xx <- store_dat0 %>% filter(wfh==0 & scenario=="isolation_manual_tracing") 
-      kk <- ii
+      kk <- 4
     }
     if(ii==4){
       xx <- store_dat0 %>% filter(wfh==0 & scenario=="cell_phone") 
-      kk <- ii
+      kk <- 7
     }
     if(ii==5){
       xx <- store_dat0 %>% filter(wfh==0 & scenario=="cell_phone_met_limit") 
-      kk <- ii
+      kk <- 5
     }
     
     lines(xx$prob_t_asymp,xx$reduction_raw,col=col_def[[kk]],lwd=2) 
     
-    text(x=0.2,y=1-0.05*(ii-1), labels=label_list[ii],cex=0.6,col=col_def[[kk]],adj=0)
+    text(x=0.2,y=1-0.05*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
     
   }
   

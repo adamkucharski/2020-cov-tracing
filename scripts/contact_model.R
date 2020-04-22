@@ -20,7 +20,7 @@ wdir <- getwd()
 out_dir <- paste0(wdir,"/outputs/") # Set data output path
 
 # Create output directories if don't exist
-subdir_list <- c("runs","runs2","sensitivity")
+subdir_list <- c("runs","runs2","sensitivity","rr_out")
 for(ii in 1:length(subdir_list)){
   ifelse(!dir.exists(paste0(out_dir, subdir_list[ii])), dir.create(file.path(out_dir, subdir_list[ii])), FALSE)
 }
@@ -35,6 +35,7 @@ n_user_o18 <- nrow(data_user_col_red_o18)
 
 
 # Run simulation model ----------------------------------------------
+# For each function, outputs are saved in 'dir_pick' directory.
 
 n_run_pick <- 1e4 # model iterations
 
@@ -45,7 +46,7 @@ source("R/model_functions.R")
 
 # - - - - - - 
 # Baseline case:
-offspring_model(n_run = n_run_pick, dir_pick = paste0(out_dir,"Main_"))
+offspring_model(n_run = n_run_pick, dir_pick = out_dir,output_r = T)
 
 # - - - - - - 
 # Sensitivity analysis on presymptomatic and isolation:
@@ -124,14 +125,16 @@ plot_networks(dir_pick = out_dir)
 plot_contacts(dir_pick = out_dir)
 
 # - - - - - - 
-# Plot outputs for different combinations
+# Plot outputs for different asymptomatic
 plot_symptom_reduction(dir_pick = out_dir)
+
+
 
 
 # Deprectated ------------------------------------------------------------
 
 # # - - - - - - 
-# Optional case:
+# Optional scenarios:
 # offspring_model(n_run = n_run_pick,range_n = c(1,2,3,11),pt_extra = 0.5,pt_extra_reduce = 0.3,dir_pick = "extra1_")
 
 
