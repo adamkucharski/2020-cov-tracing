@@ -664,7 +664,7 @@ plot_contacts <- function(dir_pick){
   label_list <- c("— SI + app-based tracing",
                   "- - SI + app-based (max 4 other contacts)")
   
-  store_dat0 <- store_dat %>% filter(limit_other==4 & wfh==0 & trace_p==0.95) %>% arrange(app_cov)
+  store_dat0 <- store_dat %>% filter(limit_other==4 & wfh==0 & app_cov!=0.53 & trace_p==0.95) %>% arrange(app_cov)
   
   for(ii in 1:2){
     
@@ -810,7 +810,7 @@ plot_symptom_reduction <- function(dir_pick){
     
     lines(xx$prob_t_asymp,xx$reduction_raw,col=col_def[[kk]],lwd=2) 
 
-    text(x=0.2,y=1-0.05*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
+    text(x=0.05,y=1-0.05*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
     
   }
   
