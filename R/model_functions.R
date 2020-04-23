@@ -40,7 +40,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             pt_extra_reduce = 0, # Reduction from extra intervention
                             output_r = F,
                             hh_risk = 0.2, # HH risk
-                            cc_risk = 0.065 # Outside HH contact risk
+                            cc_risk = 0.06 # Outside HH contact risk
                             ){
   
   # DEBUG
@@ -53,7 +53,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   under_18_prob <- 0.21 # Probability under 18
   
   # Transmission and baseline risk
-  baseline_incident_cases <- 20e4 # baseline incidence symptomatic cases
+  baseline_incident_cases <- 2e4 # baseline incidence symptomatic cases
   
   # Symptomatic and proportion getting tested
   trace_adherence <- 0.9 # Adherence to testing/quarantine
@@ -289,19 +289,19 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       # Trace contacts-of-contacts (i.e. people who were infected before detection)
       
       if(scenario_pick=="no_measures" | scenario_pick=="pop_testing" | scenario_pick=="isolation_only"){
-        total_traced <- 1
+        total_traced <- 0
       }
       
       if(scenario_pick=="hh_quaratine_only"){
-        total_traced <- home_traced + 1
+        total_traced <- home_traced 
       }
       if(scenario_pick=="hh_work_only"){
-        total_traced <- home_traced + work_traced + 1
+        total_traced <- home_traced + work_traced 
       }
       if(scenario_pick=="isolation_manual_tracing_met_only" | scenario_pick=="isolation_manual_tracing_met_limit" | 
          scenario_pick== "isolation_manual_tracing" | scenario_pick== "cell_phone" | 
          scenario_pick=="cell_phone_met_limit"){
-        total_traced <- home_traced + work_traced + other_traced + 1
+        total_traced <- home_traced + work_traced + other_traced 
       }
         
       # store outputs
@@ -319,7 +319,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
     if(output_r == T){write_csv(store_r,paste0(dir_pick,"rr_out/RR_",scenario_pick,".csv"))}
 
     store_table_scenario <- rbind(store_table_scenario,c(scenario_pick,mean(store_r$rr),mean(diff_r),
-                                                         mean(store_r$rr_reduced),mean(store_r$total_traced),quantile(store_r$total_traced,c(0.05,0.95)),
+                                                         mean(store_r$rr_reduced),median(store_r$total_traced),mean(store_r$total_traced),quantile(store_r$total_traced,c(0.05,0.95)),
                                                          sum(store_r$rr_reduced>1)/n_run,sum(store_r$rr_reduced>3)/n_run
                                                          ))
     
@@ -327,21 +327,23 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   
   # Convert
   store_table_scenario <- as_tibble(store_table_scenario)
-  names(store_table_scenario) <- c("scenario","basic","r_diff","r_eff","contacts","traced_90_1","traced_90_2","above1","above5")
+  names(store_table_scenario) <- c("scenario","basic","r_diff","r_eff","contacts_med","contacts","traced_90_1","traced_90_2","above1","above5")
   store_table_scenario$r_eff <- as.numeric(store_table_scenario$r_eff)
   store_table_scenario$basic <- as.numeric(store_table_scenario$basic)
   store_table_scenario$above1 <- as.numeric(store_table_scenario$above1)
   store_table_scenario$above5 <- as.numeric(store_table_scenario$above5)
+  store_table_scenario$traced_90_1 <- as.numeric(store_table_scenario$traced_90_1)
+  store_table_scenario$traced_90_2 <- as.numeric(store_table_scenario$traced_90_2)
   store_table_scenario$contacts <- signif(as.numeric(store_table_scenario$contacts),2)
-  
+  store_table_scenario$contacts_med <- as.numeric(store_table_scenario$contacts_med)
   
   max_val <- store_table_scenario$r_eff[1]
   
   store_table_scenarioA <- store_table_scenario %>% mutate(reduction_raw = 1-r_eff/basic,
-                                                           r_effective = signif(max_val*(1-reduction_raw),3), # Normalise for consistency
-                                                           aboveX = paste0(100* signif(above1,2),"%, ",100* signif(above5,2),"%"),
+                                                           aboveX = paste0(100* signif(above1,2),"%"), #,100* signif(above5,2),"%"),
+                                                           r_effective = signif(max_val*(1-reduction_raw),2), # Normalise for consistency
                                                            reduction = paste0(100* signif(reduction_raw,2),"%"),
-                                                           t_contacts = contacts,
+                                                           t_contacts = paste0(signif(contacts_med,2)," (",signif(traced_90_1,2),"-",signif(traced_90_2,2),")"),
                                                            total_contacts100 =  signif(1e-3*p_tested*contacts*baseline_incident_cases,2),
                                                            total_contacts50 =   signif(1e-3*p_tested*contacts*0.5*baseline_incident_cases,2),
                                                            total_contacts10 =   signif(1e-3*p_tested*contacts*0.25*baseline_incident_cases,2),
@@ -367,7 +369,7 @@ plot_R_distribution <- function(dir_pick){
   file_names <- list.files(paste0(dir_pick,"rr_out/"))
   n_files <- length(file_names)
 
-  par(mfrow=c(1,1),mar=c(3,3,1,1),mgp=c(2,0.6,0))
+  par(mfrow=c(1,2),mar=c(3,3,1,1),mgp=c(2,0.6,0))
   yy_lim <- c(1,5e3)
   
   plot(1,1,log="xy",xlab="secondary cases",ylab="frequency",ylim=yy_lim,xlim=c(0.5,100),yaxt="n",xaxt="n",col="white",pch=19,cex=0.8)
@@ -390,8 +392,31 @@ plot_R_distribution <- function(dir_pick){
   
   }
   
+  title(LETTERS[1],adj=0)
   
-  dev.copy(png,paste0(dir_pick,"rr_plot.png"),units="cm",width=10,height=8,res=150)
+  # Plot distribution of scenarios
+  
+  label_list <- c("baseline","no pre-symptomatic","shorter delay","longer delay")
+  
+  plot(-1,-1,ylab="probability",xlab="days from infectious-to-isolation",xlim=c(0,6),ylim=c(0,1))
+  lines(c(1,1),c(-1,2),col="grey",lty=2)
+  
+  store_disnt <- list(c(0,0.25,0.25,0.2,0.3,0),
+                      c(0.25,0.25,0.2,0.3,0,0),
+                      c(0,0.8,0.2,0,0,0),
+                      c(0,0,0.25,0.25,0.2,0.3)
+  )
+
+  for(ii in 1:4){
+    data_ii <- c(store_disnt[[ii]],0)
+    points(c(0:6),data_ii,col=col_def[[ii]],pch=19)
+    lines(c(0:6),data_ii,col=col_def[[ii]])
+    text(x=2,y=1-0.1*ii,labels=label_list[ii],adj=0,col=col_def[[ii]],cex=0.8)
+  }
+  
+  title(LETTERS[2],adj=0)
+  
+  dev.copy(png,paste0(dir_pick,"rr_supp_plot.png"),units="cm",width=20,height=8,res=150)
   dev.off()
   
   
@@ -509,8 +534,8 @@ plot_contacts <- function(dir_pick){
   # Plot by tracing success
   
   label_list <- c("Self-isolation + HQ + work tracing",
-                  "SI + manual tracing (familiar only)",
-                  "SI + manual (familiar, max 4 other contacts)",
+                  "SI + manual tracing (acquaintance only)",
+                  "SI + manual (acquaintance, max 4 other contacts)",
                   "SI + manual tracing (all)",
                   "SI + app-based tracing",
                   "SI + app-based (max 4 other contacts)")
@@ -552,8 +577,8 @@ plot_contacts <- function(dir_pick){
   # Plot by other contact limit scenarios
   label_list <- c("— Self-isolation + App-based tracing, 0% WFH",
                   "- - SI + App-based tracing, 50% WFH",
-                  "— SI + manual tracing (familiar only), 0% WFH",
-                  "- - SI + Manual tracing (familiar only), 50% WFH")
+                  "— SI + manual tracing (acquaintance only), 0% WFH",
+                  "- - SI + Manual tracing (acquaintance only), 50% WFH")
   
   store_dat0 <- store_dat %>% filter(trace_p==0.95 & app_cov==0.53 & limit_other!=4) %>% arrange(limit_other)
   
@@ -594,7 +619,7 @@ plot_contacts <- function(dir_pick){
   # - - - - - - - - - - - - - - - - - - - - - - - - - 
   # Plot by WFH scenarios
   
-  label_list <- c("SI + manual tracing (familiar only)",
+  label_list <- c("SI + manual tracing (acquaintance only)",
                   "SI + manual tracing (all)",
                   "SI + app-based tracing")
   
@@ -698,8 +723,8 @@ plot_symptom_reduction <- function(dir_pick){
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - 
   # Plot different symptomatic assumptions
-  label_list <- c("SI + manual tracing (familiar only)",
-                  "SI + manual (familiar, max 4 other contacts)",
+  label_list <- c("SI + manual tracing (acquaintance only)",
+                  "SI + manual (acquaintance, max 4 other contacts)",
                   "SI + manual tracing (all)",
                   "SI + app-based tracing",
                   "SI + app-based (max 4 other contacts)")
@@ -711,7 +736,7 @@ plot_symptom_reduction <- function(dir_pick){
     if(ii==1){
       xx <- store_dat0 %>% filter(wfh==0  & scenario=="isolation_manual_tracing_met_only") 
       plot(xx$prob_symp,xx$reduction_raw,xlab="proportion symptomatic",ylab="relative R",ylim=c(0,1),xlim=c(0.2,0.8),col="white",type="l",lwd=2)
-      #grid(ny = NULL, nx=NA, col = "lightgray")
+      lines(c(0.6,0.6),c(-1,2),lty=2,col="grey")
       #lines(c(1e-5,1e3),c(1,1),col="dark grey")
       #xticks <- c(10^seq(0,3,1)); xtick_lab <- c(10^seq(0,3,1))
       #axis(1, at = xticks,labels = xtick_lab,col = "black") 
@@ -736,7 +761,7 @@ plot_symptom_reduction <- function(dir_pick){
     }
     
     lines(xx$prob_symp,xx$reduction_raw,col=col_def[[kk]],lwd=2) 
-    
+
     text(x=0.2,y=1-0.05*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
     
   }
@@ -745,8 +770,8 @@ plot_symptom_reduction <- function(dir_pick){
   
   # - - - - - - - - - - - - - - - - - - - - - - - - - 
   # Plot different asymptomatic transmission assumptions
-  label_list <- c("SI + manual tracing (familiar only)",
-                  "SI + manual (familiar, max 4 other contacts)",
+  label_list <- c("SI + manual tracing (acquaintance only)",
+                  "SI + manual (acquaintance, max 4 other contacts)",
                   "SI + manual tracing (all)",
                   "SI + app-based tracing",
                   "SI + app-based (max 4 other contacts)")
@@ -759,7 +784,7 @@ plot_symptom_reduction <- function(dir_pick){
       xx <- store_dat0 %>% filter(wfh==0  & scenario=="isolation_manual_tracing_met_only") 
       plot(xx$prob_t_asymp,xx$reduction_raw,xlab="relative asymptomatic transmission",ylab="relative R",ylim=c(0,1),
            xlim=c(0,1),col="white",type="l",lwd=2)
-      #grid(ny = NULL, nx=NA, col = "lightgray")
+      lines(c(0.5,0.5),c(-1,2),lty=2,col="grey")
       #lines(c(1e-5,1e3),c(1,1),col="dark grey")
       #xticks <- c(10^seq(0,3,1)); xtick_lab <- c(10^seq(0,3,1))
       #axis(1, at = xticks,labels = xtick_lab,col = "black") 
@@ -784,7 +809,7 @@ plot_symptom_reduction <- function(dir_pick){
     }
     
     lines(xx$prob_t_asymp,xx$reduction_raw,col=col_def[[kk]],lwd=2) 
-    
+
     text(x=0.2,y=1-0.05*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
     
   }
@@ -795,4 +820,42 @@ plot_symptom_reduction <- function(dir_pick){
   dev.off()
   
 }
+
+# Compile table -----------------------------------------------------------
+
+table_outputs <- function(dir_pick){
+  
+  input_base <- read_csv(paste0(out_dir,"table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_longer <- read_csv(paste0(out_dir,"sensitivity/","late_detection_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_no_pre <- read_csv(paste0(out_dir,"sensitivity/","no_presym_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_fast <- read_csv(paste0(out_dir,"sensitivity/","fast_isolation_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  
+  
+  out_tab <- cbind(input_base$reduction,input_base$t_contacts,
+        input_no_pre$reduction,input_no_pre$t_contacts,
+        input_fast$reduction,input_fast$t_contacts,
+        input_longer$reduction,input_longer$t_contacts
+        )
+  
+  write_csv(as_tibble(out_tab),paste0(out_dir,"sensitivity/compile_table_duration.csv"))
+  
+  
+  input_base <- read_csv(paste0(out_dir,"table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_cc_7 <- read_csv(paste0(out_dir,"sensitivity/","CC_SAR_higher_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_hh_40 <- read_csv(paste0(out_dir,"sensitivity/","HH_SAR_higher_table0.4_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+
+  
+  out_tab <- cbind(input_base$reduction,input_base$t_contacts,
+                   input_cc_7$reduction,input_cc_7$t_contacts,
+                   input_hh_40$reduction,input_hh_40$t_contacts,
+                   input_cc_7$r_eff,input_hh_40$r_eff
+  )
+  
+  write_csv(as_tibble(out_tab),paste0(out_dir,"sensitivity/compile_table_SAR.csv"))
+  
+  
+}
+
+
+
 

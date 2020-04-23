@@ -1,5 +1,5 @@
-scenario,basic,r_diff,r_eff,contacts,traced_90_1,traced_90_2,above1,above5,reduction_raw,r_effective,aboveX,reduction,t_contacts,total_contacts100,total_contacts50,total_contacts10,wfh,limit_other,trace_p,app_cov,prob_symp,prob_t_asymp
-hh_work_only,2.45,0.973,1.477,10,1,29.05,0.338,0.125,0.39714285714285713,0.89,"34%, 12%",40%,10,1800,900,450,0,4,0.30000000000000004,0.53,0.6,0.5
-isolation_manual_tracing_met_only,2.721,1.204,1.517,17,2,48.05,0.332,0.13,0.4424843807423742,0.823,"33%, 13%",44%,17,3100,1500,760,0,4,0.30000000000000004,0.53,0.6,0.5
-isolation_manual_tracing_met_limit,2.441,1.392,1.049,13,2,34.05,0.242,0.068,0.5702580909463335,0.635,"24%, 6.8%",57%,13,2300,1200,580,0,4,0.30000000000000004,0.53,0.6,0.5
-isolation_manual_tracing,2.583,1.394,1.189,14,2,37.05,0.271,0.081,0.5396825396825398,0.68,"27%, 8.1%",54%,14,2500,1300,630,0,4,0.30000000000000004,0.53,0.6,0.5
+scenario,basic,r_diff,r_eff,contacts_med,contacts,traced_90_1,traced_90_2,above1,above5,reduction_raw,aboveX,r_effective,reduction,t_contacts,total_contacts100,total_contacts50,total_contacts10,wfh,limit_other,trace_p,app_cov,prob_symp,prob_t_asymp
+hh_work_only,2.5819,1.06575,1.51615,6,10,0,34,0.3317,0.1283,0.412777411983423,33%,0.89,41%,6 (0-34),180,90,45,0,4,0.30000000000000004,0.53,0.6,0.5
+isolation_manual_tracing_met_only,2.6068,1.1434,1.4634,9,13,1,39,0.3271,0.12265,0.43862206536750037,33%,0.851,44%,9 (1-39),230,120,58,0,4,0.30000000000000004,0.53,0.6,0.5
+isolation_manual_tracing_met_limit,2.55215,1.32525,1.2269,7,12,1,35,0.2793,0.08875,0.5192680680994455,28%,0.729,52%,7 (1-35),220,110,54,0,4,0.30000000000000004,0.53,0.6,0.5
+isolation_manual_tracing,2.6146,1.1824,1.4322,10,15,1,46,0.31485,0.1146,0.4522297865830337,31%,0.831,45%,10 (1-46),270,140,68,0,4,0.30000000000000004,0.53,0.6,0.5

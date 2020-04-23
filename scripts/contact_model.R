@@ -38,7 +38,7 @@ n_user_o18 <- nrow(data_user_col_red_o18)
 # Run simulation model ----------------------------------------------
 # For each function, outputs are saved in 'dir_pick' directory.
 
-n_run_pick <- 1e3 # model iterations
+n_run_pick <- 1e4 # model iterations
 
 set.seed(201)
 
@@ -46,19 +46,26 @@ set.seed(201)
 source("R/model_functions.R")
 
 # - - - - - - 
-# Baseline case:
-offspring_model(n_run = n_run_pick) #, range_n = c(1:9), dir_pick = out_dir,output_r = T)
+# Baseline case (Table 3 and 4):
+offspring_model(n_run = n_run_pick, range_n = c(1:10), dir_pick = out_dir,output_r = T)
 
 # - - - - - - 
 # Sensitivity analysis on presymptomatic and isolation:
-offspring_model(n_run = n_run_pick, range_n = c(1:9),isolate_distn = c(0.25,0.25,0.2,0.3,0,0),dir_pick = paste0(out_dir,"sensitivity/no_presym_"))
-offspring_model(n_run = n_run_pick, range_n = c(1:9),isolate_distn = c(0,0,0.25,0.25,0.2,0.3),dir_pick = paste0(out_dir,"sensitivity/late_detection_"))
-offspring_model(n_run = n_run_pick, range_n = c(1:9),isolate_distn = c(0,0.8,0.2,0,0,0),dir_pick = paste0(out_dir,"sensitivity/fast_isolation_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:10),isolate_distn = c(0.25,0.25,0.2,0.3,0,0),dir_pick = paste0(out_dir,"sensitivity/no_presym_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:10),isolate_distn = c(0,0,0.25,0.25,0.2,0.3),dir_pick = paste0(out_dir,"sensitivity/late_detection_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:10),isolate_distn = c(0,0.8,0.2,0,0,0),dir_pick = paste0(out_dir,"sensitivity/fast_isolation_"))
 
 
 # Output mean delay from onset-to-isolation in baseline and delayed scenario
 sum(c(0,0.25,0.25,0.2,0.3,0)*(0:5))
+sum(c(0,0.8,0.2,0,0,0)*(0:5))
 sum(c(0,0,0.25,0.25,0.2,0.3)*(0:5))
+
+# - - - - - - 
+# Sensitivity analysis on higher non-household contact SAR
+offspring_model(n_run = n_run_pick, range_n = c(1:10), cc_risk = 0.07, dir_pick = paste0(out_dir,"sensitivity/CC_SAR_higher_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:10), hh_risk = 0.4, cc_risk = 0.05, dir_pick = paste0(out_dir,"sensitivity/HH_SAR_higher_"))
+
 
 # - - - - - - 
 # Iterate over different proportions traced
@@ -120,18 +127,23 @@ foreach(ii = t_asymp) %dopar% {
 # Plot outputs ------------------------------------------------------------
 
 # - - - - - - 
-# Plot contact networks
+# Plot contact networks (Fig 1)
 plot_networks(dir_pick = out_dir)
 
 # - - - - - - 
-# Plot outputs for different combinations
+# Plot outputs for different combinations (Fig 2)
 plot_contacts(dir_pick = out_dir)
 
 # - - - - - - 
-# Plot outputs for different asymptomatic
+# Plot R distribution (Fig S1)
+plot_R_distribution(dir_pick = out_dir)
+
+# - - - - - - 
+# Plot outputs for different asymptomatic (Fig S2)
 plot_symptom_reduction(dir_pick = out_dir)
 
-
+# Output combined supplementary tables (Table S1-S2)
+table_outputs(dir_pick = out_dir)
 
 
 # Deprectated ------------------------------------------------------------
