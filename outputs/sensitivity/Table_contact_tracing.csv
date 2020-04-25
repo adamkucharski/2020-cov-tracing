@@ -1,0 +1,5 @@
+Scenario,No delay,24hr delay,48hr delay,72 hr delay
+SI,20%,20%,20%,20%
+SI + HQ,28%,27%,28%,26%
+SI + HQ + tracing of acquaintances,52%,52%,47%,43%
+SI + HQ + tracing of all contacts,58%,55%,54%,48%
