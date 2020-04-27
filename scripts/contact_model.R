@@ -45,45 +45,46 @@ set.seed(201)
 # Load model functions
 source("R/model_functions.R")
 
-scen_choose <- c(2,3,5,7)
+scen_choose <- c(2,3,5,7,8)
 isolate_choose <- c(0,0,0.25,0.25,0.25,0.25)
 pre_inf_choose <- 2
 inf_period_choose <- 5
+non_risk_pick <- 0.002
+trace_p <- 0.5
 
-sum(c(0,0,0.25,0.25,0.25,0.25)*(0:5))-2
 
 # - - - - - - 
 # Baseline case (Table 3 and 4):
 offspring_model(n_run = n_run_pick, range_n = scen_choose,
                 isolate_distn = isolate_choose,
                 inf_period = inf_period_choose, test_delay = 0, pre_inf = pre_inf_choose,
+                non_risk = non_risk_pick,
                 dir_pick = paste0(out_dir,"sensitivity/delay0_"),
-                hh_risk = 0.2, # HH risk
-                cc_risk = 0.05
+                trace_adherence = trace_p
                 )
 
 offspring_model(n_run = n_run_pick, range_n = scen_choose,
                 isolate_distn = isolate_choose,
                 inf_period = inf_period_choose, test_delay = 1, pre_inf = pre_inf_choose,
+                non_risk = non_risk_pick,
                 dir_pick = paste0(out_dir,"sensitivity/delay1_"),
-                hh_risk = 0.2, # HH risk
-                cc_risk = 0.05
+                trace_adherence = trace_p
 )
 
 offspring_model(n_run = n_run_pick, range_n = scen_choose,
                 isolate_distn = isolate_choose,
                 inf_period = inf_period_choose, test_delay = 2, pre_inf = pre_inf_choose,
+                non_risk = non_risk_pick,
                 dir_pick = paste0(out_dir,"sensitivity/delay2_"),
-                hh_risk = 0.2, # HH risk
-                cc_risk = 0.05
+                trace_adherence = trace_p
 )
 
 offspring_model(n_run = n_run_pick, range_n = scen_choose,
                 isolate_distn = isolate_choose,
                 inf_period = inf_period_choose, test_delay = 3, pre_inf = pre_inf_choose,
+                non_risk = non_risk_pick,
                 dir_pick = paste0(out_dir,"sensitivity/delay3_"),
-                hh_risk = 0.2, # HH risk
-                cc_risk = 0.05
+                trace_adherence = trace_p
 )
 
 
@@ -94,6 +95,10 @@ offspring_model(n_run = n_run_pick, range_n = scen_choose,
 # - - - - - - 
 # Output combined supplementary tables (Table S1-S2)
 table_outputs(dir_pick = out_dir)
+
+
+# Calculate mean
+sum(c(0,0,0.25,0.25,0.25,0.25)*(0:5))-2
 
 
 # - - - - - - 

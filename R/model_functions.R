@@ -43,13 +43,15 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             cc_risk = 0.06, # Outside HH contact risk
                             inf_period = 5, # Infectious period
                             pre_inf = 2, # Pre infectious period
-                            test_delay = 0 # Delay to testing of index
+                            test_delay = 0, # Delay to testing of index
+                            non_risk = 0.002,
+                            trace_adherence = 0.8
                             ){
   
   # DEBUG
   # max_low_fix = 4; wfh_prob = 0; range_n = NULL; trace_prop = 0.95; n_run = 5e3; app_cov = 0.53; prob_symp = 0.6; prob_t_asymp = 0.5; dir_pick = ""; pt_extra = 0.95; pt_extra_reduce = 0; output_r = F
   
-  # isolate_distn = c(0,0.25,0.25,0.2,0.3,0); inf_period = 5; test_delay = 0; pre_inf = 1
+  # isolate_distn = c(0,0.25,0.25,0.2,0.3,0); inf_period = 5; test_delay = 0; pre_inf = 1; hh_risk = 0.2; cc_risk = 0.06; non_risk=0.001
   
   # - - - - - - - - - - - - - - - - - - - - 
   # Define parameters across scenarios (note: some will be redefined for specific scenarios)
@@ -61,7 +63,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   baseline_incident_cases <- 2e4 # baseline incidence symptomatic cases
   
   # Symptomatic and proportion getting tested
-  trace_adherence <- 0.9 # Adherence to testing/quarantine
+   # Adherence to testing/quarantine
   p_tested <- trace_adherence # Proportion who get tested
   time_isolate <- isolate_distn # Distribution over symptomatic period
   p_symptomatic <- prob_symp
@@ -72,8 +74,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   # Define default scenarios
   scenario_list <- c("no_measures","isolation_only","hh_quaratine_only","hh_work_only",
                      "isolation_manual_tracing_met_only","isolation_manual_tracing_met_limit",
-                     "isolation_manual_tracing","cell_phone","cell_phone_met_limit",
-                     "pop_testing","pt_extra")
+                     "isolation_manual_tracing","cell_phone","cell_phone_met_limit")
   
   if(is.null(range_n)){nn_choose <- 1:length(scenario_list)}else{nn_choose <- range_n}
   
@@ -291,8 +292,11 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         
         # Which contacts will not be traced in time
         # (Delay onset to infectious secondary) <= isolated + test delay
+        
+        delay_to_trace <- if(scenario_pick=="cell_phone"){0}else{2} # how long to trace
+        
         delay_to_inf <- (5-pre_inf)
-        upper_timing <- inf_period_ii + (test_delay) # time of quarantine of contacts
+        upper_timing <- inf_period_ii + (test_delay) + delay_to_trace # time of quarantine of contacts
         pick_missed <- (sample_inf_contacts + (5-pre_inf) ) <= upper_timing # select quarantined late
         
         tally_n <- rep(1,total_averted1)
@@ -307,10 +311,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         total_averted <- 0
       }
       
-
-  
       rr_reduced <- rr_ii - total_averted
-      
+
       # Trace contacts-of-contacts (i.e. people who were infected before detection)
       
       if(scenario_pick=="no_measures" | scenario_pick=="pop_testing" | scenario_pick=="isolation_only"){
@@ -331,20 +333,24 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       
         
       # store outputs
-      store_r <- rbind(store_r,c(rr_basic_ii,rr_reduced,total_traced,inf_period_ii))
+      store_r <- rbind(store_r,c(rr_basic_ii,rr_ii,rr_reduced,total_traced,inf_period_ii))
+      
+      c(total_traced,rr_ii)
     
     } # end individual loop
     
     # Convert
     store_r <- as_tibble(store_r)
-    names(store_r) <- c("rr","rr_reduced","total_traced","inf_p")
+    names(store_r) <- c("rr","rr_ii","rr_reduced","total_traced","inf_p")
     
     diff_r <- store_r$rr - store_r$rr_reduced
+    
+    non_COVID <- store_r$total_traced - store_r$rr_ii
     
     # Output R and store table
     if(output_r == T){write_csv(store_r,paste0(dir_pick,"rr_out/RR_",scenario_pick,".csv"))}
 
-    store_table_scenario <- rbind(store_table_scenario,c(scenario_pick,mean(store_r$rr),mean(diff_r),
+    store_table_scenario <- rbind(store_table_scenario,c(scenario_pick,mean(store_r$rr),mean(non_COVID),mean(diff_r),
                                                          mean(store_r$rr_reduced),median(store_r$total_traced),mean(store_r$total_traced),quantile(store_r$total_traced,c(0.05,0.95)),
                                                          sum(store_r$rr_reduced>1)/n_run,sum(store_r$rr_reduced>3)/n_run
                                                          ))
@@ -353,8 +359,9 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   
   # Convert
   store_table_scenario <- as_tibble(store_table_scenario)
-  names(store_table_scenario) <- c("scenario","basic","r_diff","r_eff","contacts_med","contacts","traced_90_1","traced_90_2","above1","above5")
+  names(store_table_scenario) <- c("scenario","basic","non_infected_traced","r_diff","r_eff","contacts_med","contacts","traced_90_1","traced_90_2","above1","above5")
   store_table_scenario$r_eff <- as.numeric(store_table_scenario$r_eff)
+  store_table_scenario$non_infected_traced <- as.numeric(store_table_scenario$non_infected_traced)
   store_table_scenario$basic <- as.numeric(store_table_scenario$basic)
   store_table_scenario$above1 <- as.numeric(store_table_scenario$above1)
   store_table_scenario$above5 <- as.numeric(store_table_scenario$above5)
@@ -368,7 +375,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   pop_UK <- 67820904
   n_COVID_1 <- 1000
   n_COVID_4 <- 4000
-  nn_COVID <- round(0.002*pop_UK)
+  nn_COVID <- round(non_risk*pop_UK)
   
   store_table_scenarioA <- store_table_scenario %>% mutate(reduction_raw = 1-r_eff/basic,
                                                            aboveX = paste0(100* signif(above1,2),"%"), #,100* signif(above5,2),"%"),
@@ -378,16 +385,19 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                                                            total_contacts100 =  signif(1e-3*p_tested*contacts*baseline_incident_cases,2),
                                                            total_contacts50 =   signif(1e-3*p_tested*contacts*0.5*baseline_incident_cases,2),
                                                            total_contacts10 =   signif(1e-3*p_tested*contacts*0.25*baseline_incident_cases,2),
-                                                           contacts1 = signif(1e-3*p_tested*(nn_COVID+n_COVID_1)*contacts,3),
-                                                           contactsR1 = signif(p_tested*contacts*nn_COVID/(n_COVID_1),3),
-                                                           contacts4 = signif(1e-3*p_tested*(nn_COVID+n_COVID_4)*contacts,3),
-                                                           contactsR4 = signif(p_tested*contacts*nn_COVID/(n_COVID_4),3),
+                                                           contacts1 = signif(p_tested*(n_COVID_1)*contacts,3),
+                                                           contactsR1 = signif(p_tested*(nn_COVID)*contacts,3),
+                                                           contacts4 = signif(p_tested*(+n_COVID_4)*contacts,3),
+                                                           contactsR4 = signif(p_tested*(nn_COVID+n_COVID_4)*contacts,3),
                                                            wfh = wfh_prob,
                                                            limit_other = max_low_fix,
                                                            trace_p = trace_prop,
                                                            app_cov,
                                                            prob_symp,
-                                                           prob_t_asymp
+                                                           prob_t_asymp,
+                                                           nonCOVID_day = nn_COVID*non_infected_traced,
+                                                           COVID_day1 = n_COVID_1*non_infected_traced,
+                                                           COVID_day2 = n_COVID_4*non_infected_traced
                                                            )
   
 
@@ -868,7 +878,8 @@ table_outputs <- function(dir_pick){
   out_tab <- cbind(c("SI",
                      "SI + HQ",
                      "SI + HQ + tracing of acquaintances",
-                     "SI + HQ + tracing of all contacts"),
+                     "SI + HQ + tracing of all contacts",
+                     "SI + HQ + app-based tracing"),
                    input_0$reduction,
                    input_1$reduction,
                    input_2$reduction,
@@ -880,16 +891,35 @@ table_outputs <- function(dir_pick){
   
   write_csv(out_tab,paste0(out_dir,"sensitivity/Table_contact_tracing.csv"))
   
+  
+  # Table currently in quarantine
+  ppick=(3:5)
+  
+  out_tab <- cbind(c("SI + HQ + tracing of acquaintances",
+                     "SI + HQ + tracing of all contacts",
+                     "SI + HQ + app-based tracing"),
+                   (input_0$contactsR1)[ppick],
+                   2*(input_0$contactsR1)[ppick],
+                   3*(input_0$contactsR1)[ppick]
+  )
+  
+  out_tab <- as_tibble(out_tab)
+  names(out_tab) <- c("Scenario","24hr delay","48hr delay","72 hr delay")
+  
+  write_csv(out_tab,paste0(out_dir,"sensitivity/Table_in_quarantine.csv"))
+  
+  
+  
   # Table with contacts traced
   
   out_tab <- cbind(c("SI",
                      "SI + HQ",
                      "SI + HQ + tracing of acquaintances",
-                     "SI + HQ + tracing of all contacts"),
-                   input_0$contacts1,
+                     "SI + HQ + tracing of all contacts",
+                     "SI + HQ + app-based tracing"),
                    input_0$contactsR1,
-                   input_0$contacts4,
-                   input_0$contactsR4
+                   input_0$contacts1,
+                   input_0$contacts4
   )
   
   out_tab <- as_tibble(out_tab)

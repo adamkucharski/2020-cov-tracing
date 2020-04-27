@@ -1,5 +1,0 @@
-Scenario,Quarantined,contacts_per_case1000,Quarantined,contacts_per_case4000
-SI,0,0,0,0
-SI + HQ,307,305,314,76.3
-SI + HQ + tracing of acquaintances,4430,4390,4520,1100
-SI + HQ + tracing of all contacts,5290,5250,5400,1310
