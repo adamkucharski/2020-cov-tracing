@@ -1,0 +1,6 @@
+Scenario,No delay,3 day,6 day,No test
+SI,26%,26%,26%,25%
+SI + HQ,31%,31%,31%,32%
+SI + HQ + tracing of acquaintances,50%,56%,57%,57%
+SI + HQ + tracing of all contacts,55%,61%,63%,63%
+SI + HQ + app-based tracing,31%,38%,44%,43%

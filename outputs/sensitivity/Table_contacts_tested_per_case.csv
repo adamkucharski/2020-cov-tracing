@@ -1,0 +1,4 @@
+Scenario,M1,Median contacts
+SI + HQ + tracing of acquaintances,1000,38000
+SI + HQ + tracing of all contacts,1000,45000
+SI + HQ + app-based tracing,1000,17000

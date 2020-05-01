@@ -32,8 +32,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             trace_prop = 0.95, # Proportion of contacts traced
                             n_run = 5e3, # Number of simualtions
                             app_cov = 0.53, # App coverage
-                            prob_symp = 0.6, # Proportion symptomatic
-                            prob_t_asymp = 0.5, # Proportion symptomatic
+                            prob_symp = 0.8, # Proportion symptomatic
+                            prob_t_asymp = 0.2, # Proportion symptomatic
                             isolate_distn = c(0,0.25,0.25,0.2,0.3,0), # distribution of time to isolate (1st day presymp)
                             dir_pick = "", # Output directory
                             pt_extra = 0, # Optional extra transmission intervention
@@ -43,15 +43,17 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             cc_risk = 0.06, # Outside HH contact risk
                             inf_period = 5, # Infectious period
                             pre_inf = 2, # Pre infectious period
-                            test_delay = 0, # Delay to testing of index
+                            sample_delay = 0, # Delay to testing of contacts
+                            test_delay = 2, # Delay to results for contact
                             non_risk = 0.002,
-                            trace_adherence = 0.8
+                            trace_adherence = 0.8,
+                            p_tested = 0.8
                             ){
   
   # DEBUG
-  # max_low_fix = 4; wfh_prob = 0; range_n = NULL; trace_prop = 0.95; n_run = 5e3; app_cov = 0.53; prob_symp = 0.6; prob_t_asymp = 0.5; dir_pick = ""; pt_extra = 0.95; pt_extra_reduce = 0; output_r = F
+  # max_low_fix = 4; wfh_prob = 0; range_n = NULL; trace_prop = 0.95; n_run = 5e2; app_cov = 0.53; prob_symp = 0.6; prob_t_asymp = 0.5; dir_pick = ""; pt_extra = 0.95; pt_extra_reduce = 0; output_r = F
   
-  # isolate_distn = c(0,0.25,0.25,0.2,0.3,0); inf_period = 5; test_delay = 0; pre_inf = 1; hh_risk = 0.2; cc_risk = 0.06; non_risk=0.001
+  # range_n = c(2,3,5,7,8); isolate_distn = c(0,0,0.25,0.25,0.25,0.25); inf_period = 5; sample_delay=0; test_delay = 2; pre_inf = 1; hh_risk = 0.2; cc_risk = 0.06; non_risk=0.001
   
   # - - - - - - - - - - - - - - - - - - - - 
   # Define parameters across scenarios (note: some will be redefined for specific scenarios)
@@ -64,7 +66,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   
   # Symptomatic and proportion getting tested
    # Adherence to testing/quarantine
-  p_tested <- trace_adherence # Proportion who get tested
+  #p_tested <- trace_adherence # Proportion who get tested
   time_isolate <- isolate_distn # Distribution over symptomatic period
   p_symptomatic <- prob_symp
   transmission_asymp <- prob_t_asymp
@@ -79,6 +81,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   if(is.null(range_n)){nn_choose <- 1:length(scenario_list)}else{nn_choose <- range_n}
   
   store_table_scenario <- NULL
+  store_table_scenario_quarantine <- NULL
   
   # - - - - - 
   # RUN MODEL 
@@ -177,9 +180,11 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
     }
     
     
-    # - - -
+    
+    # - - - - - - - - - - - - - - - - - -
     # Iterate over users
     store_r <- NULL
+    store_r_quarantine <- NULL
     
     for(ii in 1:n_run){
 
@@ -279,14 +284,16 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       other_traced <- rbinom(1,other_c,prob=ww_trace*met_before_o*scale_other)
       
       # Infections averted
-      home_averted <- rbinom(1,home_infect,prob=hh_trace*trace_adherence)
-      work_averted <- rbinom(1,work_infect,prob=ww_trace*met_before_w*trace_adherence)
-      other_averted <- rbinom(1,other_infect,prob=met_before_o*other_trace*trace_adherence)
+      home_averted <- rbinom(1,home_infect,prob=hh_trace)
+      work_averted <- rbinom(1,work_infect,prob=ww_trace*met_before_w)
+      other_averted <- rbinom(1,other_infect,prob=met_before_o*other_trace)
+      
+      # trace_adherence ** MOVE THIS DOWN
       
       if(tested_T==T & symp_T==T & do_tracing==T ){
         total_averted1 <- home_averted+work_averted+other_averted
         
-        # Sample infection times in contacts for delayed testing
+        # Sample infection times in contacts (relative to onset of infectiousness in primary)
         sample_inf_contacts <- sample(inf_period_ii,total_averted1,replace = T)
         total_averted <- sample_inf_contacts
         
@@ -296,22 +303,47 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         delay_to_trace <- if(scenario_pick=="cell_phone"){0}else{2} # how long to trace
         
         delay_to_inf <- (5-pre_inf)
-        upper_timing <- inf_period_ii + (test_delay) + delay_to_trace # time of quarantine of contacts
+        upper_timing <- inf_period_ii +  delay_to_trace # time of quarantine of contacts
         pick_missed <- (sample_inf_contacts + (5-pre_inf) ) <= upper_timing # select quarantined late
-        
-        tally_n <- rep(1,total_averted1)
 
-        # Scale averted
+        # Scale by proportion of secondary infections while awaiting testing
+        tally_n <- rep(1,total_averted1)
         contact_inf_duration <- pmax(0,upper_timing-(sample_inf_contacts+delay_to_inf)) # days infectious
         tally_n[pick_missed] <- (1-(contact_inf_duration[pick_missed])/inf_period)
         
-        total_averted <- sum(tally_n)
+        # Calculate false negatives
+        # Probability infected contacts test positive
+        time_since_infection <- (inf_period_ii +  delay_to_trace)-(sample_inf_contacts )
+        
+        test_pos_contacts <- sapply(time_since_infection, pos_test)
+        test_pos_contacts_TF <-  runif(length(test_pos_contacts))<test_pos_contacts # Convert to binary
+        
+        # Proportion infection from false negatives
+        time_since_infectious <- time_since_infection - (5-pre_inf)
+        
+        excess_inf <- pmax(0,inf_period - (time_since_infectious + sample_delay + test_delay))
+        excess_inf_ratio <- (1-(excess_inf)/inf_period)
+        scaled_total <- excess_inf_ratio*tally_n
+        
+        tally_n[test_pos_contacts_TF==F] <- scaled_total[test_pos_contacts_TF==F] # false positives are not averted
+        n_positive_contacts <- sum(test_pos_contacts_TF)
+        
+        # Calculate in quarantine - only HH and positive contacts remain in quarantine
+        total_other_contacts <- work_traced + other_traced
+        quarantine_v <- c(rep(total_other_contacts,sample_delay + test_delay),rep(n_positive_contacts,14 - (sample_delay + test_delay))) +
+                          home_traced 
+                        #c(rep(n_positive_contacts,sample_delay + test_delay),rep(n_positive_contacts,7),rep(0,14-7-(sample_delay + test_delay)))
+
+        total_averted <- sum(tally_n)*trace_adherence # Add in trace adherence
 
       }else{
         total_averted <- 0
       }
       
+      # Calculate difference
       rr_reduced <- rr_ii - total_averted
+      
+      c(rr_ii,total_averted)
 
       # Trace contacts-of-contacts (i.e. people who were infected before detection)
       
@@ -334,8 +366,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         
       # store outputs
       store_r <- rbind(store_r,c(rr_basic_ii,rr_ii,rr_reduced,total_traced,inf_period_ii))
-      
-      c(total_traced,rr_ii)
+      store_r_quarantine <- rbind(store_r_quarantine,quarantine_v)
+
     
     } # end individual loop
     
@@ -354,6 +386,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                                                          mean(store_r$rr_reduced),median(store_r$total_traced),mean(store_r$total_traced),quantile(store_r$total_traced,c(0.05,0.95)),
                                                          sum(store_r$rr_reduced>1)/n_run,sum(store_r$rr_reduced>3)/n_run
                                                          ))
+    
+    store_table_scenario_quarantine <- rbind(store_table_scenario_quarantine,c(apply(store_r_quarantine,2,mean)))
     
   } # end scenario loop
   
@@ -400,11 +434,14 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                                                            COVID_day2 = n_COVID_4*non_infected_traced
                                                            )
   
+  store_table_scenario_quarantine <- as_tibble(store_table_scenario_quarantine)
 
   write_csv(store_table_scenarioA,paste0(dir_pick,"table",hh_risk,"_minother_",max_low_fix,"_wfh_",
                                          wfh_prob,"_trace_",trace_prop,"_symp_",prob_symp,"_app_",app_cov,"_tasymp_",prob_t_asymp,".csv"))
 
 
+  write_csv(store_table_scenario_quarantine,paste0(dir_pick,"table_quarantine.csv"))
+  
 }
 
 # Plot R distribtion -----------------------------------------------------------
@@ -864,9 +901,9 @@ plot_symptom_reduction <- function(dir_pick){
   
 }
 
-# Compile table -----------------------------------------------------------
+# Compile table (V0) -----------------------------------------------------------
 
-table_outputs <- function(dir_pick){
+table_outputs_v0 <- function(dir_pick){
   
   input_0 <- read_csv(paste0(out_dir,"sensitivity/delay0_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
   input_1 <- read_csv(paste0(out_dir,"sensitivity/delay1_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
@@ -927,10 +964,107 @@ table_outputs <- function(dir_pick){
   
   write_csv(out_tab,paste0(out_dir,"sensitivity/Table2_contact_tracing.csv"))
   
+}
+
+
+# Compile table -----------------------------------------------------------
+
+table_outputs <- function(dir_pick){
   
- 
+  input_0 <- read_csv(paste0(out_dir,"sensitivity/delay0_table0.2_minother_4_wfh_0_trace_0.95_symp_0.8_app_0.53_tasymp_0.2.csv"))
+  input_1 <- read_csv(paste0(out_dir,"sensitivity/delay3_table0.2_minother_4_wfh_0_trace_0.95_symp_0.8_app_0.53_tasymp_0.2.csv"))
+  input_2 <- read_csv(paste0(out_dir,"sensitivity/delay6_table0.2_minother_4_wfh_0_trace_0.95_symp_0.8_app_0.53_tasymp_0.2.csv"))
+  input_3 <- read_csv(paste0(out_dir,"sensitivity/delay14_table0.2_minother_4_wfh_0_trace_0.95_symp_0.8_app_0.53_tasymp_0.2.csv"))
+  
+  # Table with reduction
+  
+  out_tab <- cbind(c("SI",
+                     "SI + HQ",
+                     "SI + HQ + tracing of acquaintances",
+                     "SI + HQ + tracing of all contacts",
+                     "SI + HQ + app-based tracing"),
+                   input_0$reduction,
+                   input_1$reduction,
+                   input_2$reduction,
+                   input_3$reduction
+  )
+  
+  out_tab <- as_tibble(out_tab)
+  names(out_tab) <- c("Scenario","No delay","3 day","6 day","No test")
+  
+  write_csv(out_tab,paste0(out_dir,"sensitivity/Table_contact_testing.csv"))
+  
+  
+  # Table currently in quarantine
+  
+  input_01 <- read_csv(paste0(out_dir,"sensitivity/optimistic/delay0_table_quarantine.csv"))
+  input_11 <- read_csv(paste0(out_dir,"sensitivity/optimistic/delay3_table_quarantine.csv"))
+  input_21 <- read_csv(paste0(out_dir,"sensitivity/optimistic/delay6_table_quarantine.csv"))
+  input_31 <- read_csv(paste0(out_dir,"sensitivity/optimistic/delay14_table_quarantine.csv"))
+  
+  ppick=(3:5)
+  
+  out_tab <- cbind(c("SI + HQ + tracing of acquaintances",
+                     "SI + HQ + tracing of all contacts",
+                     "SI + HQ + app-based tracing"),
+                   signif(rowSums(input_01)[ppick],2),
+                   signif(rowSums(input_11)[ppick],2),
+                   signif(rowSums(input_21)[ppick],2),
+                   signif(rowSums(input_31)[ppick],2)
+  )
+  
+  out_tab <- as_tibble(out_tab)
+  names(out_tab) <- c("Scenario","No delay","3 day","6 day","No test")
+  
+  write_csv(out_tab,paste0(out_dir,"sensitivity/Table_in_quarantine_per_case.csv"))
+
+  # Contacts per case
+  nn_COVID <- 1000
+  
+  out_tab <- cbind(c("SI + HQ + tracing of acquaintances",
+                     "SI + HQ + tracing of all contacts",
+                     "SI + HQ + app-based tracing"),
+                   nn_COVID*rep(1,3),
+                   nn_COVID*input_0$contacts[ppick]+1
+                   )
+  
+
+  
+  out_tab <- as_tibble(out_tab)
+  names(out_tab) <- c("Scenario","M1","Median contacts")
+  
+  write_csv(out_tab,paste0(out_dir,"sensitivity/Table_contacts_tested_per_case.csv"))
+  
+
+  
+  # Table currently in quarantine
+  ppick=(3:5)
+  nn_COVID <- 1000
+  test_del <- 2
+  
+  background_contacts <-(input_0$contactsR1)[ppick]
+  
+  out_tab <- cbind(c("SI + HQ + tracing of acquaintances",
+                     "SI + HQ + tracing of all contacts",
+                     "SI + HQ + app-based tracing"),
+                   test_del* background_contacts+ nn_COVID*signif(rowSums(input_01)[ppick],2),
+                   test_del*background_contacts+ nn_COVID*signif(rowSums(input_11)[ppick],2),
+                   test_del*background_contacts+ nn_COVID*signif(rowSums(input_21)[ppick],2),
+                   test_del*background_contacts+ nn_COVID*signif(rowSums(input_31)[ppick],2)
+  )
+  
+  out_tab <- as_tibble(out_tab)
+  names(out_tab) <- c("Scenario","No delay","3 day","6 day","No test")
+  
+
+  write_csv(out_tab,paste0(out_dir,"sensitivity/Table_in_quarantine.csv"))
+  
+  
+  
   
 }
+
+
 
 
 

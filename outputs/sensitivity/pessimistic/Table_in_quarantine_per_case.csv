@@ -1,0 +1,4 @@
+Scenario,Median contacts,No delay,3 day,6 day,No test
+SI + HQ + tracing of acquaintances,37,110,210,290,490
+SI + HQ + tracing of all contacts,44,130,250,360,610
+SI + HQ + app-based tracing,16,61,95,130,200

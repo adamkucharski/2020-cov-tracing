@@ -1,0 +1,4 @@
+Scenario,No delay,3 day,6 day,No test
+SI + HQ + tracing of acquaintances,2840000,2930000,3030000,3230000
+SI + HQ + tracing of all contacts,3350000,3470000,3580000,3820000
+SI + HQ + app-based tracing,1233000,1268000,1302000,1382000

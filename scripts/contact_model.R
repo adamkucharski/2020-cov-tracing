@@ -50,43 +50,70 @@ isolate_choose <- c(0,0,0.25,0.25,0.25,0.25)
 pre_inf_choose <- 2
 inf_period_choose <- 5
 non_risk_pick <- 0.002
-trace_p <- 0.5
 
 
 # - - - - - - 
-# Baseline case (Table 3 and 4):
+# PCR test probability 
+
+pos_test <- function(x){
+  if(x==0){y=0}
+  if(x==1){y=0.05}
+  if(x==2){y=0.2}
+  if(x==3){y=0.4}
+  if(x==4){y=0.5}
+  if(x>=5){y=0.6}
+  y
+}
+
+# pos_test <- function(x){
+#   if(x==0){y=0.05}
+#   if(x==1){y=0.2}
+#   if(x==2){y=0.5}
+#   if(x==3){y=0.6}
+#   if(x==4){y=0.9}
+#   if(x>=5){y=1.0}
+#   y
+# }
+
+prob_test <- 0.9*pos_test(5)
+
+# - - - - - - 
+# Baseline case:
 offspring_model(n_run = n_run_pick, range_n = scen_choose,
                 isolate_distn = isolate_choose,
-                inf_period = inf_period_choose, test_delay = 0, pre_inf = pre_inf_choose,
+                inf_period = inf_period_choose, sample_delay = 0, test_delay = 2, pre_inf = pre_inf_choose,
                 non_risk = non_risk_pick,
                 dir_pick = paste0(out_dir,"sensitivity/delay0_"),
-                trace_adherence = trace_p
+                p_tested = prob_test
                 )
 
-offspring_model(n_run = n_run_pick, range_n = scen_choose,
-                isolate_distn = isolate_choose,
-                inf_period = inf_period_choose, test_delay = 1, pre_inf = pre_inf_choose,
-                non_risk = non_risk_pick,
-                dir_pick = paste0(out_dir,"sensitivity/delay1_"),
-                trace_adherence = trace_p
-)
+# - - - - - - 
+# Sensitivity case:
 
 offspring_model(n_run = n_run_pick, range_n = scen_choose,
                 isolate_distn = isolate_choose,
-                inf_period = inf_period_choose, test_delay = 2, pre_inf = pre_inf_choose,
-                non_risk = non_risk_pick,
-                dir_pick = paste0(out_dir,"sensitivity/delay2_"),
-                trace_adherence = trace_p
-)
-
-offspring_model(n_run = n_run_pick, range_n = scen_choose,
-                isolate_distn = isolate_choose,
-                inf_period = inf_period_choose, test_delay = 3, pre_inf = pre_inf_choose,
+                inf_period = inf_period_choose, sample_delay = 3, test_delay = 2, pre_inf = pre_inf_choose,
                 non_risk = non_risk_pick,
                 dir_pick = paste0(out_dir,"sensitivity/delay3_"),
-                trace_adherence = trace_p
+                p_tested = prob_test
 )
 
+
+offspring_model(n_run = n_run_pick, range_n = scen_choose,
+                isolate_distn = isolate_choose,
+                inf_period = inf_period_choose, sample_delay = 6, test_delay = 2, pre_inf = pre_inf_choose,
+                non_risk = non_risk_pick,
+                dir_pick = paste0(out_dir,"sensitivity/delay6_"),
+                p_tested = prob_test
+)
+
+offspring_model(n_run = n_run_pick, range_n = scen_choose,
+                isolate_distn = isolate_choose,
+                inf_period = inf_period_choose, sample_delay = 12, test_delay = 2, pre_inf = pre_inf_choose,
+                non_risk = non_risk_pick,
+                dir_pick = paste0(out_dir,"sensitivity/delay14_"),
+                p_tested = prob_test
+)
 
 
 
