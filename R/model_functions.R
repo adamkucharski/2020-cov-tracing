@@ -1007,10 +1007,10 @@ table_outputs <- function(dir_pick){
   out_tab <- cbind(c("SI + HQ + tracing of acquaintances",
                      "SI + HQ + tracing of all contacts",
                      "SI + HQ + app-based tracing"),
-                   signif(rowSums(input_01)[ppick],2),
-                   signif(rowSums(input_11)[ppick],2),
-                   signif(rowSums(input_21)[ppick],2),
-                   signif(rowSums(input_31)[ppick],2)
+                   signif(nn_COVID*rowSums(input_01)[ppick],2),
+                   signif(nn_COVID*rowSums(input_11)[ppick],2),
+                   signif(nn_COVID*rowSums(input_21)[ppick],2),
+                   signif(nn_COVID*rowSums(input_31)[ppick],2)
   )
   
   out_tab <- as_tibble(out_tab)
@@ -1025,7 +1025,7 @@ table_outputs <- function(dir_pick){
                      "SI + HQ + tracing of all contacts",
                      "SI + HQ + app-based tracing"),
                    nn_COVID*rep(1,3),
-                   nn_COVID*input_0$contacts[ppick]+1
+                   nn_COVID*(input_0$contacts[ppick]+1)
                    )
   
 
