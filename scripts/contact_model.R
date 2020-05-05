@@ -13,8 +13,6 @@ library(doMC)
 
 registerDoMC(4)  #change the 4 to your number of CPU cores
 
-setwd("~/Documents/GitHub/2020-cov-tracing/")
-
 # Set local path ----------------------------------------------
 
 wdir <- getwd()
