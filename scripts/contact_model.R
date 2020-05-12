@@ -36,7 +36,7 @@ n_user_o18 <- nrow(data_user_col_red_o18)
 # Run simulation model ----------------------------------------------
 # For each function, outputs are saved in 'dir_pick' directory.
 
-n_run_pick <- 1e4 # model iterations
+n_run_pick <- 1e3 # model iterations
 
 set.seed(201)
 
@@ -45,7 +45,7 @@ source("R/model_functions.R")
 
 # - - - - - - 
 # Baseline case (Table 3 and 4):
-offspring_model(n_run = n_run_pick, range_n = c(1:10), dir_pick = out_dir,output_r = T)
+offspring_model(n_run = n_run_pick, range_n = c(1:12), dir_pick = out_dir,output_r = T)
 
 # - - - - - - 
 # Sensitivity analysis on presymptomatic and isolation:

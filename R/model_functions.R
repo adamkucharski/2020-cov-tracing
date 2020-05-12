@@ -33,18 +33,29 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             n_run = 5e3, # Number of simualtions
                             app_cov = 0.53, # App coverage
                             prob_symp = 0.6, # Proportion symptomatic
-                            prob_t_asymp = 0.5, # Proportion symptomatic
+                            prob_t_asymp = 0.5, # Relative transmission from asymptomatic
                             isolate_distn = c(0,0.25,0.25,0.2,0.3,0), # distribution of time to isolate (1st day presymp)
                             dir_pick = "", # Output directory
                             pt_extra = 0, # Optional extra transmission intervention
                             pt_extra_reduce = 0, # Reduction from extra intervention
                             output_r = F,
                             hh_risk = 0.2, # HH risk
-                            cc_risk = 0.06 # Outside HH contact risk
+                            cc_risk = 0.06, # Outside HH contact risk
+                            inf_period = 5, # Infectious period - default 5 days
+                            pre_inf = 1, # Pre infectious period - default 1 day
+                            sample_delay = 0, # Delay to testing of contacts
+                            test_delay = 2, # Delay to results for contact
+                            non_risk = 0.002, # Background risk
+                            trace_adherence = 0.9, # Adherence of traced contacts to quarantine
+                            p_tested = 0.9 # Probability index case tested
                             ){
   
+  
   # DEBUG
-  # max_low_fix = 4; wfh_prob = 0; range_n = NULL; trace_prop = 0.95; n_run = 5e3; app_cov = 0.53; prob_symp = 0.6; prob_t_asymp = 0.5; isolate_distn = c(0,0.25,0.25,0.2,0.3,0); dir_pick = ""; pt_extra = 0.95; pt_extra_reduce = 0; output_r = F
+  # max_low_fix = 4; wfh_prob = 0; range_n = NULL; trace_prop = 0.95; n_run = 5e2; app_cov = 0.53; prob_symp = 0.6; prob_t_asymp = 0.5; dir_pick = ""; pt_extra = 0.95; pt_extra_reduce = 0; output_r = F
+  
+  # range_n = c(2,3,5,7,8); isolate_distn = c(0,0,0.25,0.25,0.25,0.25); inf_period = 5; sample_delay=0; test_delay = 2; pre_inf = 1; hh_risk = 0.2; cc_risk = 0.06; non_risk=0.001
+  
   
   # - - - - - - - - - - - - - - - - - - - - 
   # Define parameters across scenarios (note: some will be redefined for specific scenarios)
@@ -56,20 +67,20 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   baseline_incident_cases <- 2e4 # baseline incidence symptomatic cases
   
   # Symptomatic and proportion getting tested
-  trace_adherence <- 0.9 # Adherence to testing/quarantine
-  p_tested <- trace_adherence # Proportion who get tested
+  # Adherence to testing/quarantine
+
   time_isolate <- isolate_distn # Distribution over symptomatic period
   p_symptomatic <- prob_symp
   transmission_asymp <- prob_t_asymp
   phone_coverage <- 1 # App coverage in non-app scenarios
   p_pop_test <- 0.05 # Proportion mass tested (5% per week)
-  inf_period <- 5 # Infectious period
+  
   
   # Define default scenarios
   scenario_list <- c("no_measures","isolation_only","hh_quaratine_only","hh_work_only",
                      "isolation_manual_tracing_met_only","isolation_manual_tracing_met_limit",
                      "isolation_manual_tracing","cell_phone","cell_phone_met_limit",
-                     "pop_testing","pt_extra")
+                     "isolation_manual_tracing_cell","pop_testing","isolation_outside") 
   
   if(is.null(range_n)){nn_choose <- 1:length(scenario_list)}else{nn_choose <- range_n}
   
@@ -83,7 +94,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
     
     
     # Proportion of contacts met before
-    met_before_w <- 0.79 # At work. At school = 90%, which is defined in function later on
+    met_before_w <- 0.79 # At work. 
+    met_before_s <- 0.9
     met_before_h <- 1 # Within HH
     met_before_o <- 0.52 # In other settings
     
@@ -103,10 +115,18 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       do_isolation <- F
       do_tracing <- F
     }
+    
+    if(scenario_pick=="isolation_outside"){
+      do_isolation <- T
+      do_tracing <- F
+    }
   
     if(scenario_pick=="isolation_only"){
       do_isolation <- T
-      do_tracing <- F
+      do_tracing <- T
+      hh_trace <- 0 # Tracing at home
+      ww_trace <- 0 # Tracing at work
+      other_trace <- 0 # Tracing others
     }
     
     if(scenario_pick=="hh_quaratine_only"){
@@ -119,6 +139,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
     if(scenario_pick=="hh_work_only"){
       do_isolation <- T
       do_tracing <- T
+      met_before_s <- 1 # Met before
       met_before_w <- 1 # Met before
       met_before_o <- 1 # Met before
       other_trace <- 0 # Tracing others
@@ -138,6 +159,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
     if(scenario_pick=="isolation_manual_tracing"){
       do_isolation <- T
       do_tracing <- T
+      met_before_s <- 1 # Met before
       met_before_w <- 1 # Met before
       met_before_o <- 1 # Met before
     }
@@ -145,18 +167,22 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
     if(scenario_pick=="cell_phone"){
       do_isolation <- T
       do_tracing <- T
-      met_before_w <- 1 # Met before
-      met_before_o <- 1 # Met before
+      ww_trace <- 0 # Tracing at work
+      other_trace <- 0 # Tracing others
       phone_coverage <- app_cov
     }
     
-    if(scenario_pick=="cell_phone_met_limit"){
+    if(scenario_pick=="cell_phone_met_limit"){ # Note this includes manual tracing
       do_isolation <- T
       do_tracing <- T
-      met_before_w <- 1 # Met before
-      met_before_o <- 1 # Met before
       phone_coverage <- app_cov
       max_contacts <- max_low_fix
+    }
+    
+    if(scenario_pick=="isolation_manual_tracing_cell_met"){
+      do_isolation <- T
+      do_tracing <- T
+      phone_coverage <- app_cov
     }
 
     if(scenario_pick=="pop_testing"){
@@ -182,7 +208,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       if(runif(1)<under_18_prob){
         pick_user <- sample(1:n_user_u18,1)
         data_ii <- data_user_col_red_u18[pick_user,]
-        met_before_w <- 0.9
+        met_before_w <- met_before_s
         wfh_t <- F # working from home?
       }else{
         pick_user <- sample(1:n_user_o18,1)
@@ -218,21 +244,26 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         inf_propn <- transmission_asymp
       }
       
+      # Define amalgamated tracing probilities
+      ww_trace_all <- ww_trace*met_before_w
+      other_trace_all <- other_trace*met_before_o
+      
       # Check if contacts phone traced (in cell phone scenario):
-      if(scenario_pick=="cell_phone" | scenario_pick=="cell_phone_met_limit"){
-        if(phone_T==T){
-          ww_trace <- phone_coverage # Tracing at work
-          other_trace <- phone_coverage # Tracing others
-        }else{
-          ww_trace <- 0 # Tracing at work
-          other_trace <- 0 # Tracing others
-        }
+      if((scenario_pick=="cell_phone" | scenario_pick=="cell_phone_met_limit" | 
+          scenario_pick=="isolation_manual_tracing_cell") & phone_T==T){
+          tracePhone <- phone_coverage # Tracing at work
+
+          ww_trace_all <- 1-(1-ww_trace_all)*(1-tracePhone)
+          other_trace_all <- 1-(1-ww_trace_all)*(1-tracePhone)
+
+      }else{
+        tracePhone <- 0
       }
       
       # Extra transmission reduction
       if(scenario_pick=="pt_extra" & runif(1)<pt_extra){
         tested_T <- T
-        extra_red <- (1-pt_extra_reduce) # Multiple by both
+        extra_red <- (1-pt_extra_reduce) # Multiply by both
       }
 
       # Proportion infectious
@@ -241,7 +272,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       # Tally contacts
       home_c <- data_ii$e_home
       work_c <- data_ii$e_work*inf_period # Limit other contacts if needed
-      #school_c <- (data_ii$e_school)*inf_period # merged with work
+      #school_c <- (data_ii$e_school)*inf_period # deprecated as merged with work
       other_c <- data_ii$e_other*inf_period
 
       # Fix NA entries
@@ -250,8 +281,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       #if(is.na(school_c)){school_c <- 0}
       if(is.na(other_c)){other_c <- 0}
       
-      # Collate work/school
-      work_c <- work_c    
+      # Add max limit on other settings
       scale_other <- min(1,(max_contacts*inf_period)/other_c) # scale down based on max other contacts
 
       # Generate basic infections
@@ -260,35 +290,71 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       other_inf_basic <- rbinom(1,other_c,prob=cc_risk*inf_propn)
       rr_basic_ii <- home_inf_basic + work_inf_basic + other_inf_basic
       
-      # Generate infections
-      inf_ratio_w <- ifelse(wfh_t==T,0,inf_ratio) # check if working from home
-      
-      home_infect <- rbinom(1,home_inf_basic,prob=inf_ratio)
+      # Generate infections with interventions in place
+      inf_ratio_h <- ifelse(scenario_pick=="isolation_outside",inf_ratio,1)
+      inf_ratio_w <-  ifelse(wfh_t,0,inf_ratio) # check if working from home
+
+      home_infect <- rbinom(1,home_inf_basic,prob=inf_ratio_h)
       work_infect <- rbinom(1,work_inf_basic,prob=inf_ratio_w*extra_red)
       other_infect <- rbinom(1,other_inf_basic,prob=inf_ratio*scale_other*extra_red) # scale by maximum
       rr_ii <- home_infect + work_infect + other_infect
       
       # Contact tracing - tally contacts
       home_traced <- rbinom(1,home_c,prob=hh_trace)
-      work_traced <- rbinom(1,work_c,prob=ww_trace*met_before_w)
-      other_traced <- rbinom(1,other_c,prob=ww_trace*met_before_o*scale_other)
+      work_traced <- rbinom(1,work_c,prob=ww_trace_all)
+      other_traced <- rbinom(1,other_c,prob=other_trace_all*scale_other)
       
       # Infections averted
       home_averted <- rbinom(1,home_infect,prob=hh_trace*trace_adherence)
-      work_averted <- rbinom(1,work_infect,prob=ww_trace*met_before_w*trace_adherence)
-      other_averted <- rbinom(1,other_infect,prob=met_before_o*other_trace*trace_adherence)
+      work_averted <- rbinom(1,work_infect,prob=ww_trace_all*trace_adherence)
+      other_averted <- rbinom(1,other_infect,prob=other_trace_all*trace_adherence)
       
+      # Calculate secondary cases averted, adjusting for delay to isolation/tracing
       if(tested_T==T & symp_T==T & do_tracing==T ){
-        total_averted <- home_averted+work_averted+other_averted
+        
+        # Total infections eventually averted
+        total_averted1 <- home_averted + work_averted + other_averted
+        
+        # Sample infection times of contacts (relative to onset of infectiousness in primary)
+        sample_inf_contacts <- sample(inf_period_ii,total_averted1,replace = T)
+        total_averted <- sample_inf_contacts
+        
+        # Calculate which contacts would not be traced before onset of infectiousness
+        # (Delay onset to infectious secondary) <= isolated + test delay
+        
+        if(scenario_pick=="cell_phone" | scenario_pick=="cell_phone_met_limit"){
+            delay_to_trace <- rep(0,total_averted1)
+          }else{
+            delay_to_trace <- rep(test_delay,total_averted1) # Instant for phone, X days for manual
+        } 
+        
+        # identify source of tracing if using both app and manual
+        if(scenario_pick==" <- "){
+          delay_to_trace <- (runif(10)>tracePhone) # decide if located by phone
+          delay_to_trace[delay_to_trace] <- test_delay # set delay based on phone
+        }
+        
+        upper_timing <- inf_period_ii +  delay_to_trace # time of quarantine of contacts
+        pick_missed <- (sample_inf_contacts + (inf_period-pre_inf) ) <= upper_timing # select those quarantined late
+
+        # Scale by proportion of secondary infections while awaiting testing
+        tally_n <- rep(1,total_averted1)
+        contact_inf_duration <- pmax(0,upper_timing-(sample_inf_contacts+delay_to_inf)) # days infectious
+        tally_n[pick_missed] <- (1-(contact_inf_duration[pick_missed])/inf_period)
+        
+        # Calculate expected secondary transmission averted
+        total_averted <- sum(tally_n)
+        
       }else{
         total_averted <- 0
       }
   
       rr_reduced <- rr_ii - total_averted
       
-      # Trace contacts-of-contacts (i.e. people who were infected before detection)
+      # Tally up contacts traced
       
-      if(scenario_pick=="no_measures" | scenario_pick=="pop_testing" | scenario_pick=="isolation_only"){
+      if(scenario_pick=="no_measures" | scenario_pick=="pop_testing" | 
+         scenario_pick=="isolation_only" | scenario_pick=="isolation_outside"){
         total_traced <- 0
       }
       
@@ -300,7 +366,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       }
       if(scenario_pick=="isolation_manual_tracing_met_only" | scenario_pick=="isolation_manual_tracing_met_limit" | 
          scenario_pick== "isolation_manual_tracing" | scenario_pick== "cell_phone" | 
-         scenario_pick=="cell_phone_met_limit"){
+         scenario_pick=="cell_phone_met_limit" | scenario_pick=="isolation_manual_tracing_cell"){
         total_traced <- home_traced + work_traced + other_traced 
       }
         
@@ -858,4 +924,24 @@ table_outputs <- function(dir_pick){
 
 
 
+# Compile table (V0) -----------------------------------------------------------
+
+
+table_outputs_1 <- function(dir_pick){
+  
+  input_base <- read_csv(paste0(out_dir,"table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  
+  input_base2 <- input_base[match(c("no_measures","isolation_only","isolation_outside",
+                                                   "hh_quaratine_only","hh_work_only",
+                     "isolation_manual_tracing_met_only","isolation_manual_tracing",
+                     "cell_phone","isolation_manual_tracing_cell",
+                     "isolation_manual_tracing_met_limit",
+                     "cell_phone_met_limit","pop_testing"),input_base$scenario
+                      ),] %>% select(scenario,aboveX,r_effective,reduction)
+  
+  write_csv(input_base2,paste0(out_dir,"compile_table_base.csv"))
+  
+  
+}
+  
 
