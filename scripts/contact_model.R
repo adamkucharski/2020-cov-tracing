@@ -38,7 +38,7 @@ n_user_o18 <- nrow(data_user_col_red_o18)
 # Run simulation model ----------------------------------------------
 # For each function, outputs are saved in 'dir_pick' directory.
 
-n_run_pick <- 1e3# model iterations
+n_run_pick <- 2e4 # model iterations
 
 set.seed(201)
 
@@ -46,14 +46,20 @@ set.seed(201)
 source("R/model_functions.R")
 
 # - - - - - - 
+# MAIN FIGURES
+# - - - - - - 
+
+# - - - - - - 
 # Baseline case (Table 3 and 4):
 offspring_model(n_run = n_run_pick, dir_pick = out_dir,output_r = T)
 
+table_outputs_1(dir_pick = out_dir)
+
+
 # - - - - - - 
 # Sensitivity analysis on presymptomatic and isolation:
-offspring_model(n_run = n_run_pick, range_n = c(1:10),isolate_distn = c(0.25,0.25,0.2,0.3,0,0),dir_pick = paste0(out_dir,"sensitivity/no_presym_"))
-offspring_model(n_run = n_run_pick, range_n = c(1:10),isolate_distn = c(0,0,0.25,0.25,0.2,0.3),dir_pick = paste0(out_dir,"sensitivity/late_detection_"))
-offspring_model(n_run = n_run_pick, range_n = c(1:10),isolate_distn = c(0,0.8,0.2,0,0,0),dir_pick = paste0(out_dir,"sensitivity/fast_isolation_"))
+offspring_model(n_run = n_run_pick, range_n = c(2:11),isolate_distn = c(0,0,0.25,0.25,0.2,0.3),dir_pick = paste0(out_dir,"sensitivity/late_detection_"))
+offspring_model(n_run = n_run_pick, range_n = c(2:11),isolate_distn = c(0,0.8,0.2,0,0,0),dir_pick = paste0(out_dir,"sensitivity/fast_isolation_"))
 
 
 # Output mean delay from onset-to-isolation in baseline and delayed scenario
@@ -63,8 +69,8 @@ sum(c(0,0,0.25,0.25,0.2,0.3)*(0:5))
 
 # - - - - - - 
 # Sensitivity analysis on higher non-household contact SAR
-offspring_model(n_run = n_run_pick, range_n = c(1:10), cc_risk = 0.07, dir_pick = paste0(out_dir,"sensitivity/CC_SAR_higher_"))
-offspring_model(n_run = n_run_pick, range_n = c(1:10), hh_risk = 0.4, cc_risk = 0.05, dir_pick = paste0(out_dir,"sensitivity/HH_SAR_higher_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:11), cc_risk = 0.07, dir_pick = paste0(out_dir,"sensitivity/CC_SAR_higher_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:11), hh_risk = 0.4, cc_risk = 0.05, dir_pick = paste0(out_dir,"sensitivity/HH_SAR_higher_"))
 
 
 # - - - - - - 
@@ -88,10 +94,16 @@ foreach(ii = limit_range) %dopar% {
 # - - - - - - 
 # Iterate over different WFH range
 
-wfh_range <- seq(0,0.8,0.1)
+wfh_range <- seq(0,0.6,0.1)
 
 foreach(ii = wfh_range) %dopar% {
   offspring_model(range_n = c(5,7,8),wfh_prob=ii,n_run = n_run_pick,dir_pick = paste0(out_dir,"runs/"))
+}
+
+# With schools closed:
+
+foreach(ii = wfh_range) %dopar% {
+  offspring_model(range_n = c(5,7,8),wfh_prob=ii,wfh_probC=1, n_run = n_run_pick,dir_pick = paste0(out_dir,"runs/SC_"))
 }
 
 # - - - - - - 
@@ -103,14 +115,17 @@ foreach(ii = app_range) %dopar% {
   offspring_model(range_n = c(8,9),wfh_prob=0,n_run = n_run_pick,app_cov = ii, dir_pick = paste0(out_dir,"runs/"))
 }
 
-
 # - - - - - - 
+# SUPPLEMENTARY FIGURES
+# - - - - - - 
+
 # Iterate over prop symptomatic
+# Note: children scaled according to adult proportion (25%/60%)
 
 prop_asymp <- seq(0.2,0.8,0.1)
 
 foreach(ii = prop_asymp) %dopar% {
-  offspring_model(range_n = c(1,5:9),n_run = n_run_pick,prob_symp = ii, dir_pick = paste0(out_dir,"runs2/"))
+  offspring_model(range_n = c(1,5:9),n_run = n_run_pick,p_symptomaticC = ii*(0.25/0.6), p_symptomaticA = ii, dir_pick = paste0(out_dir,"runs2/"))
 }
 
 # - - - - - - 

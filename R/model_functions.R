@@ -27,13 +27,14 @@ col_def_F <- list(col1="grey",col2=rgb(0.9,0.7,0,0.5),col3=rgb(0,0,0.8,0.5),col5
 # Offspring simulation model ----------------------------------------------
 
 offspring_model <- function(max_low_fix = 4, # Social distancing limit in these scenarios
-                            wfh_prob = 0, # Probability people are working from home
+                            wfh_probC = 0, # Probability children have no school contacts
+                            wfh_prob = 0, # Probability adults have no work contacts
                             range_n = NULL, # Pick specific scenarios to run
                             trace_prop = 0.95, # Proportion of contacts traced
                             n_run = 5e3, # Number of simualtions
                             app_cov = 0.53, # App coverage
-                            p_symptomaticC = 0.4, # Proportion children symptomatic
-                            p_symptomaticA = 0.8, # Proportion adults symptomatic
+                            p_symptomaticC = 0.25, # Proportion children symptomatic
+                            p_symptomaticA = 0.6, # Proportion adults symptomatic
                             prob_t_asymp = 0.5, # Relative transmission from asymptomatic
                             isolate_distn = c(0,0.25,0.25,0.2,0.3,0), # distribution of time to isolate (1st day presymp)
                             dir_pick = "", # Output directory
@@ -65,7 +66,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   under_18_prob <- 0.21 # Probability under 18
   
   # Transmission and baseline risk
-  baseline_incident_cases <- 2e4 # baseline incidence symptomatic cases
+  baseline_incident_cases <- 5e3 # baseline incidence symptomatic cases
   
   # Symptomatic and proportion getting tested
   # Adherence to testing/quarantine
@@ -234,14 +235,14 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         pick_user <- sample(1:n_user_u18,1)
         data_ii <- data_user_col_red_u18[pick_user,]
         met_before_w <- met_before_s
-        wfh_t <- F # working from home?
+        wfh_t <- runif(1)< wfh_probC # schools closed?
         
         symp_T <- runif(1)<p_symptomaticC # proportion symptomatic
         
       }else{
         pick_user <- sample(1:n_user_o18,1)
         data_ii <- data_user_col_red_o18[pick_user,]
-        wfh_t <- runif(1)< wfh_prob # working from home?
+        wfh_t <- runif(1)< wfh_prob # work contacts?
         
         symp_T <- runif(1)<p_symptomaticA # proportion symptomatic
       }
@@ -320,7 +321,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       
       # Generate infections with interventions in place
       inf_ratio_h <- ifelse(scenario_pick=="isolation_outside",inf_ratio,1)
-      inf_ratio_w <-  ifelse(wfh_t,0,inf_ratio) # check if working from home
+      inf_ratio_w <-  ifelse(wfh_t,0,inf_ratio) # check if reduced work contacts
 
       home_infect <- rbinom(1,home_inf_basic,prob=inf_ratio_h)
       work_infect <- rbinom(1,work_inf_basic,prob=inf_ratio_w*extra_red)
@@ -445,20 +446,21 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                                                            r_effective = signif(max_val*(1-reduction_raw),2), # Normalise for consistency
                                                            reduction = paste0(100* signif(reduction_raw,2),"%"),
                                                            t_contacts = paste0(signif(contacts_med,2)," (",signif(traced_90_1,2),"-",signif(traced_90_2,2),")"),
-                                                           total_contacts100 =  signif(1e-3*p_tested*contacts*baseline_incident_cases,2),
-                                                           total_contacts50 =   signif(1e-3*p_tested*contacts*0.5*baseline_incident_cases,2),
-                                                           total_contacts10 =   signif(1e-3*p_tested*contacts*0.25*baseline_incident_cases,2),
+                                                           total_contacts100 =  signif(p_tested*contacts*baseline_incident_cases,2),
+                                                           total_contacts50 =   signif(p_tested*contacts*0.2*baseline_incident_cases,2),
+                                                           total_contacts10 =   signif(p_tested*contacts*0.04*baseline_incident_cases,2),
                                                            wfh = wfh_prob,
                                                            limit_other = max_low_fix,
                                                            trace_p = trace_prop,
                                                            app_cov,
-                                                           p_symptomaticC,
-                                                           prob_t_asymp
+                                                           p_symptomaticA,
+                                                           prob_t_asymp,
+                                                           wfh_probC
                                                            )
   
 
   write_csv(store_table_scenarioA,paste0(dir_pick,"table",hh_risk,"_minother_",max_low_fix,"_wfh_",
-                                         wfh_prob,"_trace_",trace_prop,"_symp_",p_symptomaticC,"_app_",app_cov,"_tasymp_",prob_t_asymp,".csv"))
+                                         wfh_prob,"_trace_",trace_prop,"_symp_",p_symptomaticA,"_app_",app_cov,"_tasymp_",prob_t_asymp,".csv"))
 
 
 }
@@ -606,7 +608,8 @@ plot_networks <- function(dir_pick){
     
   }
 
-  dev.copy(png,paste0(dir_pick,"plot1.png"),units="cm",width=14,height=20,res=150)
+  #dev.copy(png,paste0(dir_pick,"plot1.png"),units="cm",width=14,height=20,res=150)
+  dev.copy(pdf,paste0(dir_pick,"plot1.pdf"),width=6,height=10)
   dev.off()
   
   
@@ -676,10 +679,10 @@ plot_contacts <- function(dir_pick){
   
   # - - - - - - - - - - - - - - - - - - - - - - - - - 
   # Plot by other contact limit scenarios
-  label_list <- c("— Self-isolation + App-based tracing, 0% WFH",
-                  "- - SI + App-based tracing, 50% WFH",
-                  "— SI + manual tracing (acquaintance only), 0% WFH",
-                  "- - SI + Manual tracing (acquaintance only), 50% WFH")
+  label_list <- c("- Self-isolation + app-based tracing, 0% NWC",
+                  "- - SI + app-based tracing, 50% NWC",
+                  "- SI + manual tracing (acquaintance only), 0% NWC",
+                  "- - SI + manual tracing (acquaintance only), 50% NWC")
   
   store_dat0 <- store_dat %>% filter(trace_p==0.95 & app_cov==0.53 & limit_other!=4) %>% arrange(limit_other)
   
@@ -724,13 +727,13 @@ plot_contacts <- function(dir_pick){
                   "SI + manual tracing (all)",
                   "SI + app-based tracing")
   
-  store_dat0 <- store_dat %>% filter(limit_other==4 & app_cov==0.53 & trace_p==0.95) %>% arrange(wfh)
+  store_dat0 <- store_dat %>% filter(limit_other==4 & wfh_probC==0 & app_cov==0.53 & trace_p==0.95) %>% arrange(wfh)
   
   for(ii in 1:3){
     
     if(ii==1){
       xx <- store_dat0 %>% filter(scenario=="isolation_manual_tracing_met_only")
-      plot(xx$wfh,xx$r_eff,xlab="proportion with no work contacts",ylab="R",ylim=c(0.5,2.5),xlim=c(0,0.8),col="white",type="l",lwd=2)
+      plot(xx$wfh,xx$r_eff,xlab="proportion with no work contacts",ylab="R",ylim=c(0.5,2.5),xlim=c(0,0.6),col="white",type="l",lwd=2)
       lines(c(0,1e3),c(1,1),col="dark grey")
       #grid(ny = NULL, nx=NA, col = "lightgray")
       kk <- 2
@@ -753,6 +756,33 @@ plot_contacts <- function(dir_pick){
     
     text(x=0,y=2.5-0.1*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
     
+    if(ii==3){
+    text(x=0,y=2.5-0.1*(ii), labels="-- with school closure",cex=0.7,col="grey",adj=0)
+    }
+    
+  }
+  
+  # With school closure
+  store_dat0 <- store_dat %>% filter(limit_other==4 & wfh_probC==1 & app_cov==0.53 & trace_p==0.95) %>% arrange(wfh)
+  
+  for(ii in 1:3){
+    
+    if(ii==1){
+      xx <- store_dat0 %>% filter(scenario=="isolation_manual_tracing_met_only")
+      kk <- 2
+    }
+    
+    if(ii==2){
+      xx <- store_dat0 %>% filter(scenario=="isolation_manual_tracing") 
+      kk <- 4
+    }
+    if(ii==3){
+      xx <- store_dat0 %>% filter(scenario=="cell_phone") 
+      kk <- 7
+    }
+
+    lines(xx$wfh,xx$r_eff,col=col_def[[kk]],lwd=2,lty=2) 
+
   }
   
   
@@ -762,7 +792,7 @@ plot_contacts <- function(dir_pick){
   # - - - - - - - - - - - - - - - - - - - - - - - - - 
   # Plot by app coverage
   
-  label_list <- c("— SI + app-based tracing",
+  label_list <- c("- SI + app-based tracing",
                   "- - SI + app-based (max 4 other contacts)")
   
   store_dat0 <- store_dat %>% filter(limit_other==4 & wfh==0 & app_cov!=0.53 & trace_p==0.95) %>% arrange(app_cov)
@@ -794,8 +824,11 @@ plot_contacts <- function(dir_pick){
   
   title(LETTERS[4],adj=0)
   
-  dev.copy(png,paste0(dir_pick,"plot2.png"),units="cm",width=20,height=16,res=150)
+  #dev.copy(png,paste0(dir_pick,"plot2.png"),units="cm",width=20,height=16,res=150)
+  dev.copy(pdf,paste0(dir_pick,"plot2.pdf"),width=8,height=6)
   dev.off()
+  
+
   
 }
   
@@ -830,13 +863,13 @@ plot_symptom_reduction <- function(dir_pick){
                   "SI + app-based tracing",
                   "SI + app-based (max 4 other contacts)")
   
-  store_dat0 <- store_dat %>% filter(trace_p==0.95 & app_cov==0.53 & prob_t_asymp==0.5 & limit_other==4) %>% arrange(p_symptomaticC)
+  store_dat0 <- store_dat %>% filter(trace_p==0.95 & app_cov==0.53 & prob_t_asymp==0.5 & limit_other==4) %>% arrange(p_symptomaticA)
   
   for(ii in 1:5){
     
     if(ii==1){
       xx <- store_dat0 %>% filter(wfh==0  & scenario=="isolation_manual_tracing_met_only") 
-      plot(xx$p_symptomaticC,xx$reduction_raw,xlab="proportion symptomatic",ylab="relative R",ylim=c(0,1),xlim=c(0.2,0.8),col="white",type="l",lwd=2)
+      plot(xx$p_symptomaticA,xx$reduction_raw,xlab="proportion adults symptomatic",ylab="relative R",ylim=c(0,1),xlim=c(0.2,0.8),col="white",type="l",lwd=2)
       lines(c(0.6,0.6),c(-1,2),lty=2,col="grey")
       #lines(c(1e-5,1e3),c(1,1),col="dark grey")
       #xticks <- c(10^seq(0,3,1)); xtick_lab <- c(10^seq(0,3,1))
@@ -861,7 +894,7 @@ plot_symptom_reduction <- function(dir_pick){
       kk <- 5; l_type <- 1
     }
     
-    lines(xx$p_symptomaticC,xx$reduction_raw,col=col_def[[kk]],lwd=2) 
+    lines(xx$p_symptomaticA,xx$reduction_raw,col=col_def[[kk]],lwd=2) 
 
     text(x=0.2,y=1-0.05*(ii-1), labels=label_list[ii],cex=0.7,col=col_def[[kk]],adj=0)
     
@@ -877,7 +910,7 @@ plot_symptom_reduction <- function(dir_pick){
                   "SI + app-based tracing",
                   "SI + app-based (max 4 other contacts)")
   
-  store_dat0 <- store_dat %>% filter(trace_p==0.95 & app_cov==0.53 & p_symptomaticC==0.4 & limit_other==4) %>% arrange(prob_t_asymp)
+  store_dat0 <- store_dat %>% filter(trace_p==0.95 & app_cov==0.53 & p_symptomaticA==0.6 & limit_other==4) %>% arrange(prob_t_asymp)
   
   for(ii in 1:5){
     
@@ -917,7 +950,8 @@ plot_symptom_reduction <- function(dir_pick){
   
   title(LETTERS[2],adj=0)
   
-  dev.copy(png,paste0(dir_pick,"plot_symp.png"),units="cm",width=20,height=8,res=150)
+  #dev.copy(png,paste0(dir_pick,"plot_symp.png"),units="cm",width=20,height=8,res=150)
+  dev.copy(pdf,paste0(dir_pick,"plot_symp.pdf"),width=8,height=3)
   dev.off()
   
 }
@@ -928,12 +962,10 @@ table_outputs <- function(dir_pick){
   
   input_base <- read_csv(paste0(out_dir,"table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
   input_longer <- read_csv(paste0(out_dir,"sensitivity/","late_detection_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
-  input_no_pre <- read_csv(paste0(out_dir,"sensitivity/","no_presym_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
   input_fast <- read_csv(paste0(out_dir,"sensitivity/","fast_isolation_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
   
   
   out_tab <- cbind(input_base$reduction,input_base$t_contacts,
-        input_no_pre$reduction,input_no_pre$t_contacts,
         input_fast$reduction,input_fast$t_contacts,
         input_longer$reduction,input_longer$t_contacts
         )
@@ -964,17 +996,19 @@ table_outputs <- function(dir_pick){
 
 table_outputs_1 <- function(dir_pick){
   
-  input_base <- read_csv(paste0(out_dir,"table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_base <- read_csv(paste0(out_dir,"table0.2_minother_4_wfh_0_trace_0.95_symp_0.4_app_0.53_tasymp_0.5.csv"))
   
   input_base2 <- input_base[match(c("no_measures","isolation_only","isolation_outside",
                                                    "hh_quaratine_only","hh_work_only",
-                     "isolation_manual_tracing_met_only","isolation_manual_tracing",
+                     "isolation_manual_tracing",
+                     "isolation_manual_tracing_met_only",
                      "cell_phone","isolation_manual_tracing_met_only_cell",
                      "isolation_manual_tracing_met_limit",
                      "cell_phone_met_limit",
                      "isolation_manual_tracing_met_only_cell_met_limit",
                      "pop_testing"),input_base$scenario
-                      ),] %>% select(scenario,aboveX,r_effective,reduction)
+                      ),] %>% select(scenario,aboveX,r_effective,reduction,
+                                     t_contacts,total_contacts100,total_contacts50,total_contacts10)
   
   write_csv(input_base2,paste0(out_dir,"compile_table_base.csv"))
   
