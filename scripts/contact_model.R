@@ -15,6 +15,8 @@ registerDoMC(4)  #change the 4 to your number of CPU cores
 
 # Set local path ----------------------------------------------
 
+# setwd("~/Documents/GitHub/2020-cov-tracing/")
+
 wdir <- getwd()
 out_dir <- paste0(wdir,"/outputs/") # Set data output path
 
@@ -36,7 +38,7 @@ n_user_o18 <- nrow(data_user_col_red_o18)
 # Run simulation model ----------------------------------------------
 # For each function, outputs are saved in 'dir_pick' directory.
 
-n_run_pick <- 1e3 # model iterations
+n_run_pick <- 1e3# model iterations
 
 set.seed(201)
 
@@ -45,7 +47,7 @@ source("R/model_functions.R")
 
 # - - - - - - 
 # Baseline case (Table 3 and 4):
-offspring_model(n_run = n_run_pick, range_n = c(1:12), dir_pick = out_dir,output_r = T)
+offspring_model(n_run = n_run_pick, dir_pick = out_dir,output_r = T)
 
 # - - - - - - 
 # Sensitivity analysis on presymptomatic and isolation:
@@ -140,6 +142,11 @@ plot_R_distribution(dir_pick = out_dir)
 # Plot outputs for different asymptomatic (Fig S2)
 plot_symptom_reduction(dir_pick = out_dir)
 
+# - - - - - - 
+# Output combined main table
+table_outputs_1(dir_pick = out_dir)
+
+# - - - - - - 
 # Output combined supplementary tables (Table S1-S2)
 table_outputs(dir_pick = out_dir)
 
