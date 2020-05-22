@@ -51,15 +51,15 @@ source("R/model_functions.R")
 
 # - - - - - - 
 # Baseline case (Table 3 and 4):
-offspring_model(n_run = n_run_pick, dir_pick = out_dir,output_r = T)
+offspring_model(n_run = n_run_pick, range_n = c(1:13), dir_pick = out_dir,output_r = T)
 
 table_outputs_1(dir_pick = out_dir)
 
 
 # - - - - - - 
 # Sensitivity analysis on presymptomatic and isolation:
-offspring_model(n_run = n_run_pick, range_n = c(2:11),isolate_distn = c(0,0,0.25,0.25,0.2,0.3),dir_pick = paste0(out_dir,"sensitivity/late_detection_"))
-offspring_model(n_run = n_run_pick, range_n = c(2:11),isolate_distn = c(0,0.8,0.2,0,0,0),dir_pick = paste0(out_dir,"sensitivity/fast_isolation_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:13),isolate_distn = c(0,0,0.25,0.25,0.2,0.3),dir_pick = paste0(out_dir,"sensitivity/late_detection_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:13),isolate_distn = c(0,0.8,0.2,0,0,0),dir_pick = paste0(out_dir,"sensitivity/fast_isolation_"))
 
 
 # Output mean delay from onset-to-isolation in baseline and delayed scenario
@@ -69,8 +69,8 @@ sum(c(0,0,0.25,0.25,0.2,0.3)*(0:5))
 
 # - - - - - - 
 # Sensitivity analysis on higher non-household contact SAR
-offspring_model(n_run = n_run_pick, range_n = c(1:11), cc_risk = 0.07, dir_pick = paste0(out_dir,"sensitivity/CC_SAR_higher_"))
-offspring_model(n_run = n_run_pick, range_n = c(1:11), hh_risk = 0.4, cc_risk = 0.05, dir_pick = paste0(out_dir,"sensitivity/HH_SAR_higher_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:13), cc_risk = 0.07, dir_pick = paste0(out_dir,"sensitivity/CC_SAR_higher_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:13), hh_risk = 0.4, cc_risk = 0.05, dir_pick = paste0(out_dir,"sensitivity/HH_SAR_higher_"))
 
 
 # - - - - - - 

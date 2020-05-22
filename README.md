@@ -17,7 +17,7 @@ Data loading and main model run script are in `scripts/contact_model.r`. This ca
 
 ### Earlier versions
 
-Code to accompany medRxiv V1 pre-print is in `V1_code`, with file paths as above.
+Code to accompany medRxiv V1 pre-print is in `V1_code`, with file paths as above. An independent reproducibility CODECHECK has been performed on this version: http://doi.org/10.5281/zenodo.3767060
 
 ### Citation
 
