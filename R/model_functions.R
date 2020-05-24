@@ -41,7 +41,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             pt_extra = 0, # Optional extra transmission intervention
                             pt_extra_reduce = 0, # Reduction from extra intervention
                             output_r = F,
-                            hh_risk = 0.20, # HH risk
+                            hh_risk = 0.3, # HH risk
                             cc_risk = 0.06, # Outside HH contact risk
                             inf_period = 5, # Infectious period - default 5 days
                             pre_inf = 1, # Pre infectious period - default 1 day
@@ -989,9 +989,9 @@ table_outputs <- function(dir_pick){
                      "isolation_manual_tracing_met_only_cell_met_limit",
                      "pop_testing")
   
-  input_base <- read_csv(paste0(out_dir,"table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
-  input_longer <- read_csv(paste0(out_dir,"sensitivity/","late_detection_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
-  input_fast <- read_csv(paste0(out_dir,"sensitivity/","fast_isolation_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_base <- read_csv(paste0(out_dir,"table0.3_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_longer <- read_csv(paste0(out_dir,"sensitivity/","late_detection_table0.3_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_fast <- read_csv(paste0(out_dir,"sensitivity/","fast_isolation_table0.3_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
   
   
   out_tab <- cbind(input_base$scenario,input_base$reduction,input_base$t_contacts,
@@ -1006,9 +1006,9 @@ table_outputs <- function(dir_pick){
   
   # Compile SAR sensitivity analysis
   
-  input_base <- read_csv(paste0(out_dir,"table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
-  input_cc_7 <- read_csv(paste0(out_dir,"sensitivity/","CC_SAR_higher_table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
-  input_hh_40 <- read_csv(paste0(out_dir,"sensitivity/","HH_SAR_higher_table0.4_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_base <- read_csv(paste0(out_dir,"table0.3_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_cc_7 <- read_csv(paste0(out_dir,"sensitivity/","CC_SAR_higher_table0.3_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_hh_40 <- read_csv(paste0(out_dir,"sensitivity/","HH_SAR_higher_table0.5_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
 
   
   out_tab <- cbind(input_base$scenario,input_base$reduction,input_base$t_contacts,
@@ -1032,7 +1032,7 @@ table_outputs <- function(dir_pick){
 
 table_outputs_1 <- function(dir_pick){
   
-  input_base <- read_csv(paste0(out_dir,"table0.2_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
+  input_base <- read_csv(paste0(out_dir,"table0.3_minother_4_wfh_0_trace_0.95_symp_0.6_app_0.53_tasymp_0.5.csv"))
   
   input_base2 <- input_base[match(c("no_measures","isolation_only","isolation_outside",
                                                    "hh_quaratine_only","hh_work_only",

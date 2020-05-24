@@ -38,7 +38,7 @@ n_user_o18 <- nrow(data_user_col_red_o18)
 # Run simulation model ----------------------------------------------
 # For each function, outputs are saved in 'dir_pick' directory.
 
-n_run_pick <- 2e4 # model iterations
+n_run_pick <- 1e3 # model iterations
 
 set.seed(201)
 
@@ -70,7 +70,7 @@ sum(c(0,0,0.25,0.25,0.2,0.3)*(0:5))
 # - - - - - - 
 # Sensitivity analysis on higher non-household contact SAR
 offspring_model(n_run = n_run_pick, range_n = c(1:13), cc_risk = 0.07, dir_pick = paste0(out_dir,"sensitivity/CC_SAR_higher_"))
-offspring_model(n_run = n_run_pick, range_n = c(1:13), hh_risk = 0.4, cc_risk = 0.05, dir_pick = paste0(out_dir,"sensitivity/HH_SAR_higher_"))
+offspring_model(n_run = n_run_pick, range_n = c(1:13), hh_risk = 0.5, cc_risk = 0.05, dir_pick = paste0(out_dir,"sensitivity/HH_SAR_higher_"))
 
 
 # - - - - - - 
