@@ -38,7 +38,7 @@ n_user_o18 <- nrow(data_user_col_red_o18)
 # Run simulation model ----------------------------------------------
 # For each function, outputs are saved in 'dir_pick' directory.
 
-n_run_pick <- 1e3 # model iterations
+n_run_pick <- 25e3 # model iterations
 
 set.seed(201)
 
@@ -125,7 +125,7 @@ foreach(ii = app_range) %dopar% {
 prop_asymp <- seq(0.2,0.8,0.1)
 
 foreach(ii = prop_asymp) %dopar% {
-  offspring_model(range_n = c(1,5:9),n_run = n_run_pick,p_symptomaticC = ii*(0.25/0.6), p_symptomaticA = ii, dir_pick = paste0(out_dir,"runs2/"))
+  offspring_model(range_n = c(1,5:9),n_run = n_run_pick,p_symptomaticC = ii*(0.3/0.7), p_symptomaticA = ii, dir_pick = paste0(out_dir,"runs2/"))
 }
 
 # - - - - - - 
