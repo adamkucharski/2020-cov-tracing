@@ -2,7 +2,7 @@
 
 Code for modelling combined isolation, tracing and physical distancing measures. 
 
-_Note: this is working repository, so code and data are likely to change over time_
+_Note: this is working repository, so non-archived code and data are likely to change over time_
 
 ### Quick start guide
 

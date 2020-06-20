@@ -29,6 +29,7 @@ col_def_F <- list(col1="grey",col2=rgb(0.9,0.7,0,0.5),col3=rgb(0,0,0.8,0.5),col5
 offspring_model <- function(max_low_fix = 4, # Social distancing limit in these scenarios
                             wfh_probC = 0, # Probability children have no school contacts
                             wfh_prob = 0, # Probability adults have no work contacts
+                            other_prob = 0, # Probability people have no other contacts
                             range_n = NULL, # Pick specific scenarios to run
                             trace_prop = 0.95, # Proportion of contacts traced
                             n_run = 5e3, # Number of simualtions
@@ -45,8 +46,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             cc_risk = 0.06, # Outside HH contact risk
                             inf_period = 5, # Infectious period - default 5 days
                             pre_inf = 1, # Pre infectious period - default 1 day
-                            sample_delay = 0, # Delay to testing of contacts
-                            test_delay = 2, # Delay to results for contact
+                            #sample_delay = 0, # Delay to testing of contacts
+                            test_delay = 2, # Delay to tracing of contacts in manual tracing
                             non_risk = 0.002, # Background risk
                             trace_adherence = 0.9, # Adherence of traced contacts to quarantine
                             p_tested = 0.9 # Probability index case tested
@@ -246,6 +247,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         data_ii <- data_user_col_red_u18[pick_user,]
         met_before_w <- met_before_s
         wfh_t <- runif(1)< wfh_probC # schools closed?
+        other_t <- runif(1)< other_prob  # other contacts
         
         symp_T <- runif(1)<p_symptomaticC # proportion symptomatic
         
@@ -253,6 +255,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         pick_user <- sample(1:n_user_o18,1)
         data_ii <- data_user_col_red_o18[pick_user,]
         wfh_t <- runif(1)< wfh_prob # work contacts?
+        other_t <- runif(1)< other_prob  # other contacts
         
         symp_T <- runif(1)<p_symptomaticA # proportion symptomatic
       }
@@ -332,10 +335,11 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       # Generate infections with interventions in place
       inf_ratio_h <- ifelse(scenario_pick=="isolation_outside",inf_ratio,1)
       inf_ratio_w <-  ifelse(wfh_t,0,inf_ratio) # check if reduced work contacts
-
+      inf_ratio_o <-  ifelse(other_t,0,inf_ratio) # check if reduced work contacts
+      
       home_infect <- rbinom(1,home_inf_basic,prob=inf_ratio_h)
       work_infect <- rbinom(1,work_inf_basic,prob=inf_ratio_w*extra_red)
-      other_infect <- rbinom(1,other_inf_basic,prob=inf_ratio*scale_other*extra_red) # scale by maximum
+      other_infect <- rbinom(1,other_inf_basic,prob=inf_ratio_o*scale_other*extra_red) # scale by maximum
       rr_ii <- home_infect + work_infect + other_infect
       
       # Contact tracing - tally contacts

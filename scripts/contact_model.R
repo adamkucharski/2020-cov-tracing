@@ -38,7 +38,7 @@ n_user_o18 <- nrow(data_user_col_red_o18)
 # Run simulation model ----------------------------------------------
 # For each function, outputs are saved in 'dir_pick' directory.
 
-n_run_pick <- 25e3 # model iterations
+n_run_pick <- 1e4 # model iterations
 
 set.seed(201)
 
@@ -54,6 +54,32 @@ source("R/model_functions.R")
 offspring_model(n_run = n_run_pick, range_n = c(1:13), dir_pick = out_dir,output_r = T)
 
 table_outputs_1(dir_pick = out_dir)
+
+
+# - - - - - - 
+# Baseline with reduced contacts
+offspring_model(n_run = n_run_pick, 
+                wfh_prob = 0.6,
+                wfh_probC = 0.6,
+                other_prob = 0.6,
+                cc_risk = 0.06*0.5, # Outside HH contact risk
+                range_n = c(1,7), dir_pick = out_dir,output_r = T)
+
+# - - - - - - 
+# Iterate over different proportions of contacts
+contact_range <- seq(0,1,0.1)
+
+#for(ii in trace_range){
+foreach(ii = contact_range) %dopar% {
+  offspring_model(range_n = c(1,7),
+                  wfh_prob = contact_range,
+                  wfh_probC = 0.6,
+                  other_prob = contact_range,
+                  cc_risk = 0.06*0.5, # Outside HH contact risk
+                  trace_prop = 0.95, # Proportion of contacts traced
+                  n_run = n_run_pick,dir_pick = paste0(out_dir,"runs/"))
+}
+
 
 
 # - - - - - - 
