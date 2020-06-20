@@ -6,7 +6,7 @@ Code for modelling combined isolation, tracing and physical distancing measures.
 
 First, set local path in R to GitHub directory, e.g.:
 `
-setwd("~/Documents/GitHub/2020-cov-tracing/V1_code")
+setwd("~/Documents/GitHub/2020-cov-tracing/V2_code")
 `
 
 Data loading and main model run script are in `scripts/contact_model.r`. This calls the following R file:

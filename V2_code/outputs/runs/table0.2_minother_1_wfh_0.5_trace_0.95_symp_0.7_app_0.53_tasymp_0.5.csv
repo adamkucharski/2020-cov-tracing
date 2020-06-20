@@ -1,0 +1,5 @@
+scenario,basic,r_diff,r_eff,contacts_med,contacts,traced_90_1,traced_90_2,above1,above5,reduction_raw,aboveX,r_effective,reduction,t_contacts,total_contacts100,total_contacts50,total_contacts10,contactsR1,wfh,limit_other,trace_p,app_cov,p_symptomaticA,prob_t_asymp,wfh_probC
+isolation_manual_tracing_met_only,2.57928,1.683424,0.895856,21,35,1,112,0.20228,0.06008,0.6526720635216029,20%,0.31,65%,21 (1-110),630000,160000,32000,2140000,0.5,1,0.95,0.53,0.7,0.5,0
+isolation_manual_tracing_met_limit,2.59024,2.01132,0.57892,14,29,1,105,0.11976,0.03376,0.776499474952128,12%,0.2,78%,14 (1-100),520000,130000,26000,1770000,0.5,1,0.95,0.53,0.7,0.5,0
+cell_phone,2.558,1.51648,1.04152,4,17,1,69,0.22896,0.07512,0.592838154808444,23%,0.36,59%,4 (1-69),310000,76000,15000,1040000,0.5,1,0.95,0.53,0.7,0.5,0
+cell_phone_met_limit,2.59816,1.90112,0.69704,4,11,1,46,0.1456,0.04272,0.731717831080457,15%,0.24,73%,4 (1-46),200000,50000,9900,671000,0.5,1,0.95,0.53,0.7,0.5,0
