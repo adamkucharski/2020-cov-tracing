@@ -18,8 +18,8 @@ Data loading and main model run script are in `scripts/contact_model.r`. This ca
 
 Code to accompany medRxiv V1 pre-print is in `V1_code`, with file paths as above. An independent reproducibility CODECHECK has been performed on this version: http://doi.org/10.5281/zenodo.3767060
 
-Code to accompany in press Lancet Infectious Diseases paper is in `V2_code`, with file paths as above.
+Code to accompany paper published in _Lancet Infectious Diseases_ is in `V2_code`, with file paths as above.
 
 ### Citation
 
-[Kucharski AJ, Klepac P, Conlan AJK et al. Effectiveness of isolation, testing, contact tracing and physical distancing on reducing transmission of SARS-CoV-2 in different settings. MedRxiv, 2020](https://www.medrxiv.org/content/10.1101/2020.04.23.20077024v1)
+[Kucharski AJ, Klepac P, Conlan AJK et al. Effectiveness of isolation, testing, contact tracing and physical distancing on reducing transmission of SARS-CoV-2 in different settings. Lancet Infectious Diseases, 2020](https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30457-6/fulltext)
