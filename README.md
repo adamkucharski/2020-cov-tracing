@@ -16,9 +16,9 @@ Data loading and main model run script are in `scripts/contact_model.r`. This ca
 
 ### Archived versions
 
-Code to accompany medRxiv V1 pre-print is in `V1_code`, with file paths as above. An independent reproducibility CODECHECK has been performed on this version: http://doi.org/10.5281/zenodo.3767060
+• Code to accompany medRxiv V1 pre-print is in `V1_code`, with file paths as above. An independent reproducibility CODECHECK has been performed on this version: http://doi.org/10.5281/zenodo.3767060
 
-Code to accompany paper published in _Lancet Infectious Diseases_ is in `V2_code`, with file paths as above.
+• Code to accompany paper published in _Lancet Infectious Diseases_ is in `V2_code`, with file paths as above.
 
 ### Citation
 
