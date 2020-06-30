@@ -58,28 +58,48 @@ table_outputs_1(dir_pick = out_dir)
 
 # - - - - - - 
 # Baseline with reduced contacts
+
+covid_s <- 0.25
+
 offspring_model(n_run = n_run_pick, 
                 wfh_prob = 0.6,
                 wfh_probC = 0.6,
                 other_prob = 0.6,
-                cc_risk = 0.06*0.5, # Outside HH contact risk
-                range_n = c(1,7), dir_pick = out_dir,output_r = T)
+                cc_risk = 0.06*(1-covid_s), # Outside HH contact risk
+                trace_prop = 0.9, # Proportion of contacts traced
+                trace_delay = 1, # Delay to tracing
+                p_tested = 0.5, # Probability index case isolated/tested
+                trace_adherence = 0.8, # Adherence of traced contacts to quarantine
+                range_n = c(1,3,7), dir_pick = out_dir,output_r = T)
 
 # - - - - - - 
 # Iterate over different proportions of contacts
-contact_range <- seq(0,1,0.1)
+contact_range <- seq(0,0.8,0.1)
+reduction_range <- c(0,0.05,0.25,0.5)
 
 #for(ii in trace_range){
 foreach(ii = contact_range) %dopar% {
-  offspring_model(range_n = c(1,7),
-                  wfh_prob = contact_range,
-                  wfh_probC = 0.6,
-                  other_prob = contact_range,
-                  cc_risk = 0.06*0.5, # Outside HH contact risk
-                  trace_prop = 0.95, # Proportion of contacts traced
-                  n_run = n_run_pick,dir_pick = paste0(out_dir,"runs/"))
+  for(pp in c(0.2,0.35,0.8)){
+    for(kk in c(0)){
+      for(jj in reduction_range){
+        offspring_model(range_n = c(1,3,7),
+                        wfh_prob = ii,
+                        wfh_probC = kk, # school contacts
+                        other_prob = ii,
+                        cc_risk = 0.06*(1-jj), # Outside HH contact risk
+                        trace_prop = pp, # Proportion of contacts traced
+                        trace_delay = 1, # Delay to tracing
+                        p_tested = 0.5, # Probability index case isolated/tested
+                        trace_adherence = 0.8, # Adherence of traced contacts to quarantine
+                        n_run = n_run_pick,dir_pick = paste0(out_dir,"runs/"))
+      }
+    }
+  }
 }
 
+# - - - - - - 
+# Output combined table with interactions
+table_outputs_contact_range(dir_pick = out_dir)
 
 
 # - - - - - - 

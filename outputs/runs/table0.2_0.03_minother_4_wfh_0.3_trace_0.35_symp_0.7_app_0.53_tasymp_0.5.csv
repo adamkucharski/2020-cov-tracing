@@ -1,0 +1,4 @@
+scenario,basic,r_diff,r_eff,contacts_med,contacts,traced_90_1,traced_90_2,above1,above5,reduction_raw,aboveX,r_effective,reduction,t_contacts,total_contacts100,total_contacts50,total_contacts10,contactsR1,wfh,limit_other,trace_p,app_cov,p_symptomaticA,prob_t_asymp,wfh_probC,cc_risk
+no_measures,1.4453,0.3622,1.0831,0,0,0,0,0.2472,0.0691,0.2506054106413894,25%,0.81,25%,0 (0-0),0,0,0,0,0.30000000000000004,4,0.35,0.53,0.7,0.5,0.6,0.03
+hh_quaratine_only,1.4422,0.6224,0.8198,2,2.1,0,4,0.183,0.0447,0.4315628900291222,18%,0.62,43%,2 (0-4),21000,5200,1000,71200,0.30000000000000004,4,0.35,0.53,0.7,0.5,0.6,0.03
+isolation_manual_tracing,1.439,0.62684,0.81216,12,18,1,54,0.1835,0.0469,0.43560806115357886,18%,0.61,44%,12 (1-54),180000,45000,9000,610000,0.30000000000000004,4,0.35,0.53,0.7,0.5,0.6,0.03

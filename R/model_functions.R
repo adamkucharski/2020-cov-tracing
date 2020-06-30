@@ -47,7 +47,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             inf_period = 5, # Infectious period - default 5 days
                             pre_inf = 1, # Pre infectious period - default 1 day
                             #sample_delay = 0, # Delay to testing of contacts
-                            test_delay = 2, # Delay to tracing of contacts in manual tracing
+                            test_delay = 2, # Delay to test results that trigger tracing of contacts
+                            trace_delay = 2, # Delay to tracing of contacts in manual tracing
                             non_risk = 0.002, # Background risk
                             trace_adherence = 0.9, # Adherence of traced contacts to quarantine
                             p_tested = 0.9 # Probability index case tested
@@ -368,21 +369,21 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         # (Delay onset to infectious secondary) <= isolated + test delay
         
         if(scenario_pick=="cell_phone" | scenario_pick=="cell_phone_met_limit"){
-            delay_to_trace <- rep(0,total_averted1)
+            delay_to_trace <- rep(test_delay,total_averted1)
           }else{
-            delay_to_trace <- rep(test_delay,total_averted1) # Instant for phone, X days for manual
+            delay_to_trace <- c(rep(test_delay,home_averted), rep(test_delay+ trace_delay,work_averted + other_averted) ) # Instant for phone, X days for manual
         } 
         
         # Identify source of tracing if using both app and manual
         
         if(scenario_pick=="isolation_manual_tracing_met_only_cell" | scenario_pick=="isolation_manual_tracing_met_only_cell_met_limit"){
-          delay_to_trace <- rep(0,total_averted1)
+          delay_to_trace <- rep(test_delay,total_averted1)
           delay_to_trace <- (runif(total_averted1)>tracePhone) # decide if located by phone
-          delay_to_trace[delay_to_trace] <- test_delay # set delay based on phone
+          delay_to_trace[delay_to_trace] <- test_delay + trace_delay # set delay based on phone
         }
         
         upper_timing <- inf_period_ii +  delay_to_trace # time of quarantine of contacts
-        pick_missed <- (sample_inf_contacts + (inf_period-pre_inf) ) <= upper_timing # select those quarantined late
+        pick_missed <- ( (sample_inf_contacts + (inf_period-pre_inf) ) <= upper_timing ) # select those quarantined late
 
         # Scale by proportion of secondary infections while awaiting testing
         delay_to_inf <- (5-pre_inf) # how long from exposure to infectiousness
@@ -474,11 +475,12 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                                                            app_cov,
                                                            p_symptomaticA,
                                                            prob_t_asymp,
-                                                           wfh_probC
+                                                           wfh_probC,
+                                                           cc_risk
                                                            )
   
 
-  write_csv(store_table_scenarioA,paste0(dir_pick,"table",hh_risk,"_minother_",max_low_fix,"_wfh_",
+  write_csv(store_table_scenarioA,paste0(dir_pick,"table",hh_risk,"_",cc_risk,"_minother_",max_low_fix,"_wfh_",
                                          wfh_prob,"_trace_",trace_prop,"_symp_",p_symptomaticA,"_app_",app_cov,"_tasymp_",prob_t_asymp,".csv"))
 
 
@@ -858,7 +860,91 @@ plot_contacts <- function(dir_pick){
 
   
 }
+
+# Table of contact range -----------------------------------------------------------
+
+
+table_outputs_contact_range <- function(dir_pick){
   
+  file_names <- list.files(paste0(dir_pick,"runs/"))
+  n_files <- length(file_names)
+  
+  # Compile data
+  store_dat <- NULL
+  for(ii in 1:n_files){
+    
+    input_ii <- read_csv(paste0(dir_pick,"runs/",file_names[ii]))
+    store_dat <- rbind(store_dat,input_ii)
+    
+  }
+  
+  store_dat$wfh <- 1-store_dat$wfh # convert to % active
+  store_dat <- store_dat %>% mutate(c_safe = 1-cc_risk/0.06)
+  
+  # Extract ranges
+  
+  trace_range <- unique(store_dat$trace_p)
+  c_safe_range <- unique(store_dat$c_safe) %>% sort()
+  
+  # - - - - - - - - - - - - - - - - - - - - - - - - - 
+  # Plot by WFH scenarios
+  
+  col_def <- list("red","orange","cyan","grey")
+  
+  label_list <- c("- Self-isolation and HH quarantine",
+                  "- - SI + HHQ + 35% contact tracing")
+
+  par(mfrow=c(length(c_safe_range),length(trace_range)),mar=c(3,3,1,1),mgp=c(2,0.6,0),las=1)
+  
+  store_dat0 <- store_dat %>% arrange(wfh)
+
+  for(ii in 1:length(c_safe_range)){
+    for(kk in 1:length(trace_range)){
+      
+      for(jj in 1:2){
+          
+          if(jj==1){scenario_pick <- "hh_quaratine_only"}
+          if(jj==2){scenario_pick <- "isolation_manual_tracing"}
+          
+          xx <- store_dat0 %>% filter(scenario==scenario_pick) %>% filter(c_safe==c_safe_range[ii] & trace_p==trace_range[kk])
+          
+          if(jj==1){
+            plot(xx$wfh,xx$r_eff,xlab="% active work and other contacts",
+                 main = paste0("C-S: ",100*c_safe_range[ii],"% , trace:", 100*trace_range[kk],"%"),
+                 ylab="R",ylim=c(0,2),xlim=c(0.2,1),col="white",type="l",lwd=2)
+            lines(c(0.2,1),c(1,1),col="dark grey",lty=2)
+            #grid(ny = NULL, nx=NA, col = "lightgray")
+            kk <- 2
+          }
+          if(ii==1){
+            text(x=0.2,y=2-0.1*jj, labels=label_list[jj],cex=1,col="black",adj=0)
+          }
+      
+          lines(xx$wfh,xx$r_eff,col=col_def[[ii]],lwd=2,lty=jj) 
+          
+          if(jj==1){
+            text(x=0.8,0.5-0.1*ii,labels=paste0(round(40),"% school contacts"),col=col_def[[ii]],adj=0)
+          }
+      }
+    }
+  }
+  
+
+  
+  dev.copy(pdf,paste0(dir_pick,"Figure_contacts.pdf"),width=6,height=5)
+  dev.off()
+  
+  # Output csv
+  output_plot <- store_dat %>% filter(scenario=="hh_quaratine_only" | scenario=="isolation_manual_tracing") %>%
+                           mutate(prop_active_contacts=signif(wfh,3),prop_covid_safe=signif(1-cc_risk/0.06),3) %>%
+                           select(scenario,prop_active_contacts,prop_covid_safe,r_eff)
+   
+  write_csv(output_plot,paste0(dir_pick,"output_estimates.csv"))
+  
+  
+  
+}
+
 
 # Plot symptomatic sensitivity -----------------------------------------------------------
 
