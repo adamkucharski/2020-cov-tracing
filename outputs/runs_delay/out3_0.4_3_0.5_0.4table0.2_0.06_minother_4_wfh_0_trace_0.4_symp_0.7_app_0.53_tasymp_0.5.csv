@@ -1,0 +1,2 @@
+scenario,basic,r_diff,r_eff,contacts_med,contacts,traced_90_1,traced_90_2,above1,above5,reduction_raw,aboveX,r_effective,reduction,t_contacts,total_contacts100,total_contacts50,total_contacts10,contactsR1,wfh,limit_other,trace_p,app_cov,p_symptomaticA,prob_t_asymp,wfh_probC,cc_risk,test_delay,trace_delay,p_tested
+isolation_manual_tracing,2.5834,0.31818,2.26522,14,20,1,61,0.4626,0.2155,0.12316327320585285,46%,2,12%,14 (1-61),160000,40000,8000,543000,0,4,0.4,0.53,0.7,0.5,0,0.06,3,3,0.4

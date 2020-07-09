@@ -45,7 +45,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                             hh_risk = 0.2, # HH risk
                             cc_risk = 0.06, # Outside HH contact risk
                             inf_period = 5, # Infectious period - default 5 days
-                            pre_inf = 1, # Pre infectious period - default 1 day
+                            pre_inf = 2, # Pre infectious period - default 1 day
                             #sample_delay = 0, # Delay to testing of contacts
                             test_delay = 2, # Delay to test results that trigger tracing of contacts
                             trace_delay = 2, # Delay to tracing of contacts in manual tracing
@@ -58,7 +58,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
   # DEBUG
   # max_low_fix = 4; wfh_prob = 0; range_n = NULL; trace_prop = 0.95; n_run = 5e2; app_cov = 0.53; prob_symp = 0.6; prob_t_asymp = 0.5; dir_pick = ""; pt_extra = 0.95; pt_extra_reduce = 0; output_r = F
   
-  # range_n = c(2,3,5,7,8); isolate_distn = c(0,0,0.25,0.25,0.25,0.25); inf_period = 5; sample_delay=0; test_delay = 2; pre_inf = 1; hh_risk = 0.2; cc_risk = 0.06; non_risk=0.001
+  # p_symptomaticA=0.7; p_symptomaticC=0.7; trace_adherence=0.8; wfh_probC=0; p_tested=0.8; other_prob = 0; range_n = c(2,3,5,7,8); isolate_distn = c(0,0,0.25,0.25,0.25,0.25); inf_period = 5; sample_delay=0; trace_delay=2; test_delay = 5; pre_inf = 1; hh_risk = 0.2; cc_risk = 0.06; non_risk=0.001
   
   
   # - - - - - - - - - - - - - - - - - - - - 
@@ -389,7 +389,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         delay_to_inf <- (5-pre_inf) # how long from exposure to infectiousness
         
         tally_n <- rep(1,total_averted1)
-        contact_inf_duration <- pmax(0,upper_timing-(sample_inf_contacts+delay_to_inf)) # days infectious
+
+        contact_inf_duration <- pmin(inf_period, pmax(0,upper_timing-(sample_inf_contacts+delay_to_inf)) ) # days infectious (max = inf_period)
         tally_n[pick_missed] <- (1-(contact_inf_duration[pick_missed])/inf_period) # calculate proportion of onward transmisison pre-quarantine
         
         # Calculate expected secondary transmission averted
@@ -400,6 +401,8 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       }
   
       rr_reduced <- rr_ii - total_averted
+      
+      rr_reduced
       
       # Tally up contacts traced
       
@@ -476,7 +479,10 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                                                            p_symptomaticA,
                                                            prob_t_asymp,
                                                            wfh_probC,
-                                                           cc_risk
+                                                           cc_risk,
+                                                           test_delay,
+                                                           trace_delay,
+                                                           p_tested
                                                            )
   
 
@@ -940,6 +946,102 @@ table_outputs_contact_range <- function(dir_pick){
                            select(scenario,prop_active_contacts,prop_covid_safe,r_eff)
    
   write_csv(output_plot,paste0(dir_pick,"output_estimates.csv"))
+  
+  
+  
+}
+
+# Table of delay range -----------------------------------------------------------
+
+
+table_outputs_delay_range <- function(dir_pick){
+  
+  file_names <- list.files(paste0(dir_pick,"runs_delay/"))
+  n_files <- length(file_names)
+  
+  # Compile data
+  store_dat <- NULL
+  for(ii in 1:n_files){
+    
+    input_ii <- read_csv(paste0(dir_pick,"runs_delay/",file_names[ii]))
+    store_dat <- rbind(store_dat,input_ii)
+    
+  }
+
+  # Extract ranges
+  trace_range <- unique(store_dat$trace_p)
+  test_delay_range <- unique(store_dat$test_delay) %>% sort()
+  trace_delay_range <- unique(store_dat$trace_delay) %>% sort()
+  
+  ptest_delay_range <- unique(store_dat$p_tested) %>% sort()
+  t_aymp_delay_range <- unique(store_dat$prob_t_asymp) %>% sort()
+  
+  # - - - - - - - - - - - - - - - - - - - - - - - - - 
+  # Plot by scenarios
+  
+  col_def <- list("blue","orange","grey")
+  label_list <- c("Delay test-to-trace: 1d",
+                  "Delay test-to-trace: 2d",
+                  "Delay test-to-trace: 3d")
+  
+  
+  # - - -
+  # Loop over options
+  
+  for(pp1 in 1:length(ptest_delay_range)){
+  for(pp2 in 1:length(t_aymp_delay_range)){
+    
+    store_dat0 <- store_dat %>% filter(p_tested==ptest_delay_range[pp1] & prob_t_asymp==t_aymp_delay_range[pp2]) %>% arrange(trace_p)
+    
+    par(mfrow=c(1,5),mar=c(3,3,1,1),mgp=c(2,0.6,0),las=1)
+    
+  
+    for(ii in 1:length(test_delay_range)){
+      
+      for(kk in 1:length(trace_delay_range)){
+        
+        for(jj in 2){
+          
+          if(jj==1){scenario_pick <- "hh_quaratine_only"}
+          if(jj==2){scenario_pick <- "isolation_manual_tracing"}
+          
+          xx <- store_dat0 %>% filter(scenario==scenario_pick) %>% filter(test_delay==test_delay_range[ii] & trace_delay==trace_delay_range[kk])
+          
+          if(jj==2 & kk==1){
+            plot(xx$wfh,xx$r_eff,xlab="% contacts traced and quarantined",
+                 main = paste0("Delay isolation-to-test: ",test_delay_range[ii]," days"),
+                 ylab="reduction in transmission (%)",ylim=c(0,100),xlim=c(0,1),col="white",type="l",lwd=2)
+            #lines(c(0.2,1),c(1,1),col="dark grey",lty=2)
+            grid(ny = NULL, nx=NA, col = "lightgray")
+          }
+          
+          if(jj==2){
+            #text(x=0.2,y=100*(1-0.1*jj), labels=label_list[jj],cex=1,col="black",adj=0)
+            text(x=0.2,y=80*(1-0.05*kk), labels=label_list[kk],cex=1,col=col_def[[kk]],adj=0)
+          }
+          
+          lines(xx$trace_p,100*xx$reduction_raw,col=col_def[[kk]],lwd=2,lty=1) 
+          
+          # if(jj==1){
+          #   text(x=0.8,0.5-0.1*ii,labels=paste0(round(40),"% school contacts"),col=col_def[[ii]],adj=0)
+          # }
+        } # end scenarios
+      } # end trace delay
+      
+    } # end test delay
+  
+    dev.copy(pdf,paste0(dir_pick,"Figure_delay_ptest_",pp1,"_tasymp",pp2,".pdf"),width=12,height=4)
+    dev.off()
+  
+  }
+  }
+  
+  # Output csv
+  # output_plot <- store_dat %>% filter(scenario=="hh_quaratine_only" | scenario=="isolation_manual_tracing") %>%
+  #   mutate(prop_active_contacts=signif(wfh,3),prop_covid_safe=signif(1-cc_risk/0.06),3) %>%
+  #   select(scenario,prop_active_contacts,prop_covid_safe,r_eff)
+  # 
+  # write_csv(output_plot,paste0(dir_pick,"output_estimates.csv"))
   
   
   

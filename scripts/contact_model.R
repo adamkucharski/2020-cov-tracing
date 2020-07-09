@@ -51,55 +51,64 @@ source("R/model_functions.R")
 
 # - - - - - - 
 # Baseline case (Table 3 and 4):
-offspring_model(n_run = n_run_pick, range_n = c(1:13), dir_pick = out_dir,output_r = T)
-
-table_outputs_1(dir_pick = out_dir)
+#offspring_model(n_run = n_run_pick, range_n = c(1:13), dir_pick = out_dir,output_r = T)
+#table_outputs_1(dir_pick = out_dir)
 
 
 # - - - - - - 
 # Baseline with reduced contacts
 
-covid_s <- 0.25
+covid_s <- 0
 
 offspring_model(n_run = n_run_pick, 
-                wfh_prob = 0.6,
-                wfh_probC = 0.6,
-                other_prob = 0.6,
+                wfh_prob = 0,
+                wfh_probC = 0,
+                other_prob = 0,
                 cc_risk = 0.06*(1-covid_s), # Outside HH contact risk
                 trace_prop = 0.9, # Proportion of contacts traced
-                trace_delay = 1, # Delay to tracing
-                p_tested = 0.5, # Probability index case isolated/tested
+                pre_inf = 2, # Pre-infectious period
+                test_delay = 2, # Delay to tracing
+                trace_delay = 2, # Delay to tracing
+                p_tested = 0.8, # Probability index case isolated/tested
                 trace_adherence = 0.8, # Adherence of traced contacts to quarantine
-                range_n = c(1,3,7), dir_pick = out_dir,output_r = T)
+                range_n = c(1,2,3,7), dir_pick = out_dir,output_r = T)
+
 
 # - - - - - - 
-# Iterate over different proportions of contacts
-contact_range <- seq(0,0.8,0.1)
-reduction_range <- c(0,0.05,0.25,0.5)
+# Iterate over different tracing speeds
+tracing_range <- seq(0,1,0.2)
+speed_range_test <- c(0,1,2,3,5)
+speed_range_trace <- c(1:3)
+t_asymp_range <- c(0.25,0.5,0.75)
+p_test_range <- c(0.4,0.6,0.8)
+
+isolate_choose <- c(0,0,0.25,0.25,0.25,0.25)
 
 #for(ii in trace_range){
-foreach(ii = contact_range) %dopar% {
-  for(pp in c(0.2,0.35,0.8)){
-    for(kk in c(0)){
-      for(jj in reduction_range){
-        offspring_model(range_n = c(1,3,7),
-                        wfh_prob = ii,
-                        wfh_probC = kk, # school contacts
-                        other_prob = ii,
-                        cc_risk = 0.06*(1-jj), # Outside HH contact risk
-                        trace_prop = pp, # Proportion of contacts traced
-                        trace_delay = 1, # Delay to tracing
-                        p_tested = 0.5, # Probability index case isolated/tested
-                        trace_adherence = 0.8, # Adherence of traced contacts to quarantine
-                        n_run = n_run_pick,dir_pick = paste0(out_dir,"runs/"))
+foreach(jj = speed_range_test) %dopar% {
+  for(pp in tracing_range){
+      for(kk in speed_range_trace){
+        for(mm in t_asymp_range){
+          for(tt in p_test_range){
+              offspring_model(range_n = c(7),
+                            isolate_distn = isolate_choose, # onset to isolation
+                            trace_prop = pp, # Proportion of contacts traced
+                            test_delay = jj, # Delay to test results that trigger tracing of contacts
+                            trace_delay = kk, # Delay to tracing
+                            p_tested = tt, # Probability index case isolated/tested
+                            trace_adherence = 1, # Adherence of traced contacts to quarantine (wrap into trace parameter)
+                            prob_t_asymp = mm, # Asymptomatic contribution
+                            n_run = n_run_pick,
+                            dir_pick = paste0(out_dir,"runs_delay/out",jj,"_",pp,"_",kk,"_",mm,"_",tt))
+          }
+        }
       }
-    }
   }
 }
 
 # - - - - - - 
-# Output combined table with interactions
-table_outputs_contact_range(dir_pick = out_dir)
+# Output combined table with values
+table_outputs_delay_range(dir_pick = out_dir)
 
 
 # - - - - - - 
@@ -218,7 +227,36 @@ table_outputs(dir_pick = out_dir)
 # Optional scenarios:
 # offspring_model(n_run = n_run_pick,range_n = c(1,2,3,11),pt_extra = 0.5,pt_extra_reduce = 0.3,dir_pick = "extra1_")
 
+# - - - - - - 
+# 2020_06_22
 
+# - - - - - - 
+# Iterate over different proportions of contacts
+contact_range <- seq(0,0.8,0.1)
+reduction_range <- c(0,0.05,0.25,0.5)
 
+#for(ii in trace_range){
+foreach(ii = contact_range) %dopar% {
+  for(pp in c(0.2,0.35,0.8)){
+    for(kk in c(0)){
+      for(jj in reduction_range){
+        offspring_model(range_n = c(1,3,7),
+                        wfh_prob = ii,
+                        wfh_probC = kk, # school contacts
+                        other_prob = ii,
+                        cc_risk = 0.06*(1-jj), # Outside HH contact risk
+                        trace_prop = pp, # Proportion of contacts traced
+                        trace_delay = 1, # Delay to tracing
+                        p_tested = 0.5, # Probability index case isolated/tested
+                        trace_adherence = 0.8, # Adherence of traced contacts to quarantine
+                        n_run = n_run_pick,dir_pick = paste0(out_dir,"runs/"))
+      }
+    }
+  }
+}
+
+# - - - - - - 
+# Output combined table with interactions
+table_outputs_contact_range(dir_pick = out_dir)
 
 
