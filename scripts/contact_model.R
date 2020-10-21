@@ -75,6 +75,31 @@ offspring_model(n_run = n_run_pick,
 
 
 # - - - - - - 
+# Iterate over different limits on contacts and with/without limit on children
+limit_range <- round(10^seq(0,2,0.2)) %>% unique()
+max_lim_children_vals <- c(T,F)
+
+foreach(ii = limit_range) %dopar% {
+  for(jj in max_lim_children_vals){
+    offspring_model(max_low_fix = ii,
+                    max_lim_children=jj,
+                    range_n = c(6),
+                    wfh_prob=0.5,
+                    n_run = 2e4,
+                    pre_inf = 2, # Pre-infectious period
+                    trace_prop = 0.5, # Proportion of contacts traced
+                    test_delay = 3, # Delay to testing
+                    trace_delay = 2, # Delay to tracing
+                    p_tested = 0.8, # Probability index case isolated/tested
+                    trace_adherence = 0.5, # Adherence of traced contacts to quarantine
+                    dir_pick = paste0(out_dir,"runs_contacts/",jj,"_"))
+  }
+}
+
+plot_contacts()
+
+
+# - - - - - - 
 # Iterate over different tracing speeds
 tracing_range <- seq(0,1,0.2)
 speed_range_test <- c(0,1,2,3,5)

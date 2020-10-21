@@ -27,6 +27,7 @@ col_def_F <- list(col1="grey",col2=rgb(0.9,0.7,0,0.5),col3=rgb(0,0,0.8,0.5),col5
 # Offspring simulation model ----------------------------------------------
 
 offspring_model <- function(max_low_fix = 4, # Social distancing limit in these scenarios
+                            max_lim_children = T, # Impose limit on children as well
                             wfh_probC = 0, # Probability children have no school contacts
                             wfh_prob = 0, # Probability adults have no work contacts
                             other_prob = 0, # Probability people have no other contacts
@@ -244,6 +245,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
 
       # Decide if child or adult
       if(runif(1)<under_18_prob){
+        adult_T <- F
         pick_user <- sample(1:n_user_u18,1)
         data_ii <- data_user_col_red_u18[pick_user,]
         met_before_w <- met_before_s
@@ -253,6 +255,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
         symp_T <- runif(1)<p_symptomaticC # proportion symptomatic
         
       }else{
+        adult_T <- T
         pick_user <- sample(1:n_user_o18,1)
         data_ii <- data_user_col_red_o18[pick_user,]
         wfh_t <- runif(1)< wfh_prob # work contacts?
@@ -325,8 +328,12 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
       if(is.na(other_c)){other_c <- 0}
       
       # Add max limit on other settings
-      scale_other <- min(1,(max_contacts*inf_period)/other_c) # scale down based on max other contacts
-
+      scale_other <- 1
+      
+      if(max_lim_children==T | adult_T==T){ # cgeck if children included
+        scale_other <- min(1,(max_contacts*inf_period)/other_c) # scale down based on max other contacts
+      }
+      
       # Generate basic infections
       home_inf_basic <- rbinom(1,home_c,prob=hh_risk*inf_propn)
       work_inf_basic <- rbinom(1,work_c,prob=cc_risk*inf_propn)
@@ -482,6 +489,7 @@ offspring_model <- function(max_low_fix = 4, # Social distancing limit in these 
                                                            cc_risk,
                                                            test_delay,
                                                            trace_delay,
+                                                           max_lim_children,
                                                            p_tested
                                                            )
   
@@ -985,6 +993,7 @@ table_outputs_delay_range <- function(dir_pick){
                   "Delay test-to-trace: 3d")
   
   
+
   # - - -
   # Loop over options
   
@@ -1042,6 +1051,17 @@ table_outputs_delay_range <- function(dir_pick){
   #   select(scenario,prop_active_contacts,prop_covid_safe,r_eff)
   # 
   # write_csv(output_plot,paste0(dir_pick,"output_estimates.csv"))
+  
+  
+  output_plot <- store_dat %>% select(p_tested,prob_t_asymp,test_delay,trace_delay,trace_p,reduction_raw)
+  output_plot <- output_plot %>% rename(proportion_symptomatic_isolate_and_tested = p_tested,
+                                        relative_transmission_from_asymptomatics = prob_t_asymp,
+                                        delay_isolation_to_test = test_delay,
+                                        delay_test_to_trace_and_quarantine = trace_delay,
+                                        proportion_contacts_traced_and_quarantine = trace_p,
+                                        estimated_transmission_reduction = reduction_raw)
+  
+  write_csv(output_plot,paste0(dir_pick,"output_values_plot.csv"))
   
   
   
@@ -1247,4 +1267,71 @@ table_outputs_1 <- function(dir_pick){
   
 }
   
+# Plot contact limits -----------------------------------------------------------
 
+plot_contacts <- function(dir_pick){
+  
+  dir_pick <- out_dir
+  
+  file_names <- list.files(paste0(dir_pick,"runs_contacts/"))
+  n_files <- length(file_names)
+  
+  par(mfrow=c(1,1),mar=c(3,3,1,1),mgp=c(2,0.6,0),las=1)
+  
+  # Compile data
+  store_dat <- NULL
+  for(ii in 1:n_files){
+    
+    input_ii <- read_csv(paste0(dir_pick,"runs_contacts/",file_names[ii]))
+    store_dat <- rbind(store_dat,input_ii)
+    
+  }
+  
+  # - - - - - - - - - - - - - - - - - - - - - - - - - 
+  # Plot by other contact limit scenarios
+  # label_list <- c("SI + manual tracing (acquaintance only)",
+  #                 "SI + manual tracing (acquaintance only) + limit on contacts")
+  # 
+  label_list <- c("Limit for everyone",
+                  "Limit for adults only")
+  
+  
+  store_dat0 <- store_dat %>% filter(wfh==0.25) %>% arrange(limit_other)
+  
+  for(ii in 1:2){
+    
+    if(ii==1){
+      xx <- store_dat0 %>% filter(max_lim_children==T  & scenario=="isolation_manual_tracing_met_limit") 
+      plot(xx$limit_other,xx$r_eff,log="x",xlab="maximum daily other contacts",ylab="R",ylim=c(0.5,2),xlim=c(1,100),
+           xaxt="n",col="white",type="l",lwd=2)
+      #grid(ny = NULL, nx=NA, col = "lightgray")
+      lines(c(1e-5,1e3),c(1,1),col="dark grey")
+      xticks <- c(10^seq(0,3,1)); xtick_lab <- c(10^seq(0,3,1))
+      axis(1, at = xticks,labels = xtick_lab,col = "black") 
+      kk <- 7; l_type <- 1
+    }
+    
+    if(ii==2){
+      xx <- store_dat0 %>% filter(max_lim_children==F  & scenario=="isolation_manual_tracing_met_limit") 
+      kk <- 3; l_type <- 1
+    }
+    lines(xx$limit_other,xx$r_eff,col=col_def[[kk]],lwd=2,lty=l_type)
+
+  }
+  
+
+  lines(c(5,5),c(0,3),col="grey",lwd=2,lty=2) 
+  text(x=6,y=0.6, labels="Rule of 6",cex=0.7,col="grey",adj=0)
+  
+  text(x=1,y=2-0.1*(1-1), labels=label_list[1],cex=0.7,col=col_def[[7]],adj=0)
+  text(x=1,y=2-0.1*(2-1), labels=label_list[2],cex=0.7,col=col_def[[3]],adj=0)
+  
+
+  
+  dev.copy(png,paste0(dir_pick,"plot_contacts.png"),units="cm",width=12,height=12,res=150)
+  #dev.copy(pdf,paste0(dir_pick,"Figure_contacts.pdf"),width=8,height=6)
+  dev.off()
+  
+  
+  
+}
